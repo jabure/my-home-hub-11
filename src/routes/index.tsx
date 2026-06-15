@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Server,
   ExternalLink,
@@ -15,6 +15,11 @@ import {
   Activity,
   HardDrive,
   Cpu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
 } from "lucide-react";
 import heroImg from "@/assets/hero.jpg";
 import g1 from "@/assets/gallery-1.jpg";
@@ -56,13 +61,19 @@ const services: Service[] = [
     description: "Mein Hauptprojekt — gehostet im Homelab.",
     status: "online",
   },
+  {
+    name: "Overseerr",
+    url: "https://seerr.xsellishimbeerkuchen.com",
+    description: "Film- & Serien-Requests für meinen Media-Stack.",
+    status: "online",
+  },
 ];
 
 const gallery = [
-  { src: g1, title: "Rack" },
-  { src: g2, title: "Workbench" },
-  { src: g3, title: "Patchpanel" },
-  { src: g4, title: "Battlestation" },
+  { src: g1, title: "Trauung" },
+  { src: g2, title: "Brautpaar" },
+  { src: g3, title: "Feier" },
+  { src: g4, title: "Erinnerung" },
 ];
 
 function Home() {
@@ -317,14 +328,58 @@ function Stat({
 }
 
 function Gallery() {
+  const [index, setIndex] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const close = useCallback(() => {
+    setIndex(null);
+    setPlaying(false);
+  }, []);
+  const next = useCallback(
+    () => setIndex((i) => (i === null ? i : (i + 1) % gallery.length)),
+    [],
+  );
+  const prev = useCallback(
+    () =>
+      setIndex((i) => (i === null ? i : (i - 1 + gallery.length) % gallery.length)),
+    [],
+  );
+
+  useEffect(() => {
+    if (index === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "ArrowLeft") prev();
+      else if (e.key === " ") {
+        e.preventDefault();
+        setPlaying((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [index, close, next, prev]);
+
+  useEffect(() => {
+    if (index === null || !playing) return;
+    const id = window.setInterval(next, 3500);
+    return () => window.clearInterval(id);
+  }, [index, playing, next]);
+
   return (
     <section id="gallery" className="pt-20">
-      <SectionTitle eyebrow="Snapshots" title="Aus dem Maschinenraum" />
+      <SectionTitle eyebrow="Hochzeit" title="Galerie" />
       <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {gallery.map((g, i) => (
-          <figure
+          <button
+            type="button"
             key={g.title}
-            className={`group relative overflow-hidden rounded-2xl glass ${
+            onClick={() => setIndex(i)}
+            className={`group relative overflow-hidden rounded-2xl glass text-left ${
               i === 0 ? "col-span-2 row-span-2 aspect-square sm:aspect-[4/5]" : "aspect-square"
             }`}
           >
@@ -336,12 +391,85 @@ function Gallery() {
               height={1024}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
             />
-            <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 to-transparent p-3 text-xs font-medium opacity-0 transition group-hover:opacity-100">
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 to-transparent p-3 text-xs font-medium opacity-0 transition group-hover:opacity-100">
               {g.title}
-            </figcaption>
-          </figure>
+            </span>
+          </button>
         ))}
       </div>
+
+      {index !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-xl animate-fade-in"
+          onClick={close}
+          role="dialog"
+          aria-modal="true"
+          aria-label={gallery[index].title}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              close();
+            }}
+            aria-label="Schließen"
+            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full glass transition hover:text-primary"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPlaying((p) => !p);
+            }}
+            aria-label={playing ? "Pause" : "Slideshow starten"}
+            className="absolute right-20 top-4 grid h-11 w-11 place-items-center rounded-full glass transition hover:text-primary"
+          >
+            {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              prev();
+            }}
+            aria-label="Vorheriges Bild"
+            className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full glass transition hover:text-primary"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              next();
+            }}
+            aria-label="Nächstes Bild"
+            className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full glass transition hover:text-primary"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+
+          <figure
+            className="relative max-h-full max-w-6xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              key={gallery[index].src}
+              src={gallery[index].src}
+              alt={gallery[index].title}
+              className="max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl animate-scale-in"
+            />
+            <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{gallery[index].title}</span>
+              <span className="tabular-nums">
+                {index + 1} / {gallery.length}
+              </span>
+            </figcaption>
+          </figure>
+        </div>
+      )}
     </section>
   );
 }
