@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Server,
+  Heart,
   ExternalLink,
   Cloud,
   Sun,
@@ -12,14 +12,14 @@ import {
   Wind,
   Github,
   Mail,
-  Activity,
-  HardDrive,
-  Cpu,
+  Sparkles,
+  Film,
   X,
   ChevronLeft,
   ChevronRight,
   Play,
   Pause,
+  type LucideIcon,
 } from "lucide-react";
 import heroImg from "@/assets/hero.jpg";
 import g1 from "@/assets/gallery-1.jpg";
@@ -30,17 +30,17 @@ import g4 from "@/assets/gallery-4.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Homelab — Personal Server & Projects" },
+      { title: "Familienmomente — unsere Galerie" },
       {
         name: "description",
         content:
-          "Mein Homelab in Wels — selbst gehostete Dienste, Projekte, Galerie und Live-Wetter.",
+          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
       },
-      { property: "og:title", content: "Homelab — Personal Server & Projects" },
+      { property: "og:title", content: "Familienmomente — unsere Galerie" },
       {
         property: "og:description",
         content:
-          "Mein Homelab in Wels — selbst gehostete Dienste, Projekte, Galerie und Live-Wetter.",
+          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
       },
     ],
   }),
@@ -51,21 +51,21 @@ type Service = {
   name: string;
   url: string;
   description: string;
-  status?: "online";
+  icon: LucideIcon;
 };
 
 const services: Service[] = [
   {
     name: "Lemorium",
     url: "https://Lemorium.xsellishimbeerkuchen.com",
-    description: "Mein Hauptprojekt — gehostet im Homelab.",
-    status: "online",
+    description: "Unsere Hauptseite",
+    icon: Sparkles,
   },
   {
     name: "Overseerr",
     url: "https://seerr.xsellishimbeerkuchen.com",
-    description: "Film- & Serien-Requests für meinen Media-Stack.",
-    status: "online",
+    description: "Film- & Serien-Wünsche",
+    icon: Film,
   },
 ];
 
@@ -78,12 +78,10 @@ const gallery = [
 
 function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen">
       <Nav />
       <Hero />
       <main className="mx-auto max-w-6xl px-5 pb-32 sm:px-8">
-        <Services />
-        <Weather />
         <Gallery />
         <Footer />
       </main>
@@ -94,123 +92,55 @@ function Home() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-2xl px-5 py-3 glass sm:mx-8">
+      <div className="mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-8">
         <a href="#top" className="flex items-center gap-2 font-display font-semibold">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/20 text-primary">
-            <Server className="h-4 w-4" />
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+            <Heart className="h-4 w-4" fill="currentColor" />
           </span>
-          <span className="truncate">homelab.local</span>
+          <span className="truncate">unsere Erinnerungen</span>
         </a>
-        <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
-          <a href="#services" className="transition hover:text-foreground">Services</a>
-          <a href="#weather" className="transition hover:text-foreground">Wetter</a>
-          <a href="#gallery" className="transition hover:text-foreground">Galerie</a>
-        </nav>
-        <span className="hidden items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 sm:flex">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-          online
-        </span>
+        <QuickDock />
       </div>
     </header>
   );
 }
 
-function Hero() {
+function QuickDock() {
   return (
-    <section id="top" className="relative mx-auto max-w-6xl px-5 pt-12 pb-20 sm:px-8 sm:pt-20">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <img
-          src={heroImg}
-          alt=""
-          className="h-full w-full object-cover opacity-30"
-          width={1920}
-          height={1080}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
-      </div>
-      <div className="max-w-3xl">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-1 text-xs uppercase tracking-widest text-muted-foreground backdrop-blur">
-          <Activity className="h-3 w-3 text-primary" /> Wels · Oberösterreich
-        </span>
-        <h1 className="mt-6 text-5xl font-bold leading-[1.05] sm:text-7xl">
-          Mein <span className="glow-text">Homelab</span>.
-          <br />
-          Stille Server, laute Ideen.
-        </h1>
-        <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Eine kleine Sammlung von selbst gehosteten Diensten, Experimenten und
-          Momentaufnahmen aus dem Maschinenraum.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
-            href="#services"
-            className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Zu den Services
-          </a>
-          <a
-            href="#gallery"
-            className="rounded-xl border border-border/60 bg-background/40 px-5 py-3 text-sm font-medium backdrop-blur transition hover:bg-background/70"
-          >
-            Galerie ansehen
-          </a>
-        </div>
-        <dl className="mt-12 grid max-w-md grid-cols-3 gap-4">
-          {[
-            { icon: Cpu, label: "Nodes", value: "4" },
-            { icon: HardDrive, label: "Storage", value: "18TB" },
-            { icon: Activity, label: "Uptime", value: "99.8%" },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="rounded-xl px-4 py-3 glass">
-              <Icon className="h-4 w-4 text-primary" />
-              <dt className="mt-2 text-xs text-muted-foreground">{label}</dt>
-              <dd className="font-display text-xl font-semibold">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
+    <div className="flex items-center gap-1.5">
+      <WeatherButton />
+      <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
+      {services.map((s) => (
+        <ServiceButton key={s.name} service={s} />
+      ))}
+    </div>
   );
 }
 
-function Services() {
+function ServiceButton({ service }: { service: Service }) {
+  const { icon: Icon, name, description, url } = service;
   return (
-    <section id="services" className="pt-20">
-      <SectionTitle eyebrow="Self-hosted" title="Meine Services" />
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {services.map((s) => (
-          <a
-            key={s.name}
-            href={s.url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="group relative overflow-hidden rounded-2xl p-6 glass transition hover:-translate-y-1 hover:border-primary/50"
-          >
-            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl transition group-hover:bg-primary/40" />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-xl font-semibold">{s.name}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.description}</p>
-              </div>
-              <ExternalLink className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:text-primary" />
-            </div>
-            <div className="mt-6 flex items-center justify-between text-xs">
-              <span className="truncate text-muted-foreground">
-                {s.url.replace(/^https?:\/\//, "")}
-              </span>
-              {s.status === "online" && (
-                <span className="flex items-center gap-1.5 text-emerald-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> live
-                </span>
-              )}
-            </div>
-          </a>
-        ))}
-        <div className="flex items-center justify-center rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-          Mehr Services folgen…
+    <div className="group relative">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer noopener"
+        aria-label={name}
+        className="grid h-10 w-10 place-items-center rounded-full bg-white/60 text-foreground/70 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+      >
+        <Icon className="h-4 w-4" />
+      </a>
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-56 origin-top-right scale-95 rounded-2xl p-3 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-display text-sm font-semibold">{name}</p>
+          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        <p className="mt-2 truncate text-[10px] uppercase tracking-widest text-primary">
+          {url.replace(/^https?:\/\//, "")}
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -219,10 +149,9 @@ type WeatherData = {
   apparent: number;
   code: number;
   wind: number;
-  isDay: boolean;
 };
 
-const WMO: Record<number, { label: string; Icon: typeof Sun }> = {
+const WMO: Record<number, { label: string; Icon: LucideIcon }> = {
   0: { label: "Klar", Icon: Sun },
   1: { label: "Heiter", Icon: Sun },
   2: { label: "Teilw. bewölkt", Icon: Cloud },
@@ -246,13 +175,13 @@ const WMO: Record<number, { label: string; Icon: typeof Sun }> = {
   99: { label: "Gewitter", Icon: CloudLightning },
 };
 
-function Weather() {
+function WeatherButton() {
   const [data, setData] = useState<WeatherData | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=48.1667&longitude=14.0333&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day&timezone=Europe%2FVienna",
+      "https://api.open-meteo.com/v1/forecast?latitude=48.1667&longitude=14.0333&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Europe%2FVienna",
     )
       .then((r) => r.json())
       .then((j) => {
@@ -261,7 +190,6 @@ function Weather() {
           apparent: Math.round(j.current.apparent_temperature),
           code: j.current.weather_code,
           wind: Math.round(j.current.wind_speed_10m),
-          isDay: j.current.is_day === 1,
         });
       })
       .catch(() => setError(true));
@@ -271,59 +199,93 @@ function Weather() {
   const Icon = wmo?.Icon ?? Cloud;
 
   return (
-    <section id="weather" className="pt-20">
-      <SectionTitle eyebrow="Live" title="Wetter in Wels" />
-      <div className="mt-10 overflow-hidden rounded-3xl glass">
-        <div className="grid gap-6 p-8 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="flex min-w-0 items-center gap-6">
-            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary animate-float">
-              <Icon className="h-10 w-10" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-6xl font-bold tabular-nums">
-                  {data ? `${data.temp}°` : error ? "—" : "··"}
-                </span>
-                <span className="text-sm text-muted-foreground">C</span>
-              </div>
-              <p className="mt-1 truncate text-muted-foreground">
-                {wmo?.label ?? (error ? "Wetter nicht verfügbar" : "Laden…")}
-              </p>
-            </div>
+    <div className="group relative">
+      <button
+        type="button"
+        aria-label="Wetter in Wels"
+        className="flex h-10 items-center gap-1.5 rounded-full bg-white/60 px-3 text-sm font-medium text-foreground/80 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+      >
+        <Icon className="h-4 w-4" />
+        <span className="tabular-nums">
+          {data ? `${data.temp}°` : error ? "—" : "··"}
+        </span>
+      </button>
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-64 origin-top-right scale-95 rounded-2xl p-4 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
+        <div className="flex items-center gap-3">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+            <Icon className="h-6 w-6" />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-1 sm:text-right">
-            <Stat label="Gefühlt" value={data ? `${data.apparent}°C` : "—"} />
-            <Stat
-              label="Wind"
-              value={data ? `${data.wind} km/h` : "—"}
-              icon={<Wind className="h-3 w-3" />}
-            />
+          <div>
+            <p className="font-display text-2xl font-semibold tabular-nums">
+              {data ? `${data.temp}°C` : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {wmo?.label ?? (error ? "nicht verfügbar" : "lädt…")}
+            </p>
           </div>
         </div>
-        <div className="border-t border-border/60 bg-background/30 px-8 py-3 text-xs text-muted-foreground">
-          Daten via open-meteo.com · 48.17°N 14.03°E
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-xl bg-white/60 px-3 py-2 ring-1 ring-border">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Gefühlt
+            </p>
+            <p className="font-display font-semibold">
+              {data ? `${data.apparent}°` : "—"}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white/60 px-3 py-2 ring-1 ring-border">
+            <p className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+              <Wind className="h-3 w-3" /> Wind
+            </p>
+            <p className="font-display font-semibold">
+              {data ? `${data.wind} km/h` : "—"}
+            </p>
+          </div>
         </div>
+        <p className="mt-3 text-[10px] text-muted-foreground">
+          Wels · open-meteo.com
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
 
-function Stat({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function Hero() {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/30 px-4 py-2">
-      <div className="flex items-center justify-end gap-1 text-[10px] uppercase tracking-widest text-muted-foreground">
-        {icon} {label}
+    <section id="top" className="relative mx-auto max-w-6xl px-5 pt-12 pb-16 sm:px-8 sm:pt-20">
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <img
+          src={heroImg}
+          alt=""
+          className="h-full w-full object-cover opacity-25"
+          width={1920}
+          height={1080}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/85 to-background" />
       </div>
-      <div className="font-display text-lg font-semibold">{value}</div>
-    </div>
+      <div className="max-w-3xl">
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs uppercase tracking-widest text-muted-foreground ring-1 ring-border backdrop-blur">
+          <Heart className="h-3 w-3 text-primary" fill="currentColor" /> Wels · Familie
+        </span>
+        <h1 className="mt-6 text-5xl font-bold leading-[1.05] sm:text-7xl">
+          Unsere <span className="glow-text">liebsten</span>
+          <br />
+          Momente.
+        </h1>
+        <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+          Hochzeit, Familie und kleine Augenblicke, die wir nicht vergessen
+          wollen. Klick auf ein Bild für die Diashow.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a
+            href="#gallery"
+            className="rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            Galerie öffnen
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -371,15 +333,15 @@ function Gallery() {
   }, [index, playing, next]);
 
   return (
-    <section id="gallery" className="pt-20">
-      <SectionTitle eyebrow="Hochzeit" title="Galerie" />
+    <section id="gallery" className="pt-10">
+      <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
       <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {gallery.map((g, i) => (
           <button
             type="button"
             key={g.title}
             onClick={() => setIndex(i)}
-            className={`group relative overflow-hidden rounded-2xl glass text-left ${
+            className={`group relative overflow-hidden rounded-3xl bg-white text-left shadow-md ring-1 ring-border transition hover:-translate-y-1 hover:shadow-xl ${
               i === 0 ? "col-span-2 row-span-2 aspect-square sm:aspect-[4/5]" : "aspect-square"
             }`}
           >
@@ -391,7 +353,7 @@ function Gallery() {
               height={1024}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
             />
-            <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 to-transparent p-3 text-xs font-medium opacity-0 transition group-hover:opacity-100">
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent p-3 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
               {g.title}
             </span>
           </button>
@@ -400,7 +362,7 @@ function Gallery() {
 
       {index !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-xl animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-xl animate-fade-in"
           onClick={close}
           role="dialog"
           aria-modal="true"
@@ -413,7 +375,7 @@ function Gallery() {
               close();
             }}
             aria-label="Schließen"
-            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full glass transition hover:text-primary"
+            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
           >
             <X className="h-5 w-5" />
           </button>
@@ -424,7 +386,7 @@ function Gallery() {
               setPlaying((p) => !p);
             }}
             aria-label={playing ? "Pause" : "Slideshow starten"}
-            className="absolute right-20 top-4 grid h-11 w-11 place-items-center rounded-full glass transition hover:text-primary"
+            className="absolute right-20 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
           >
             {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </button>
@@ -435,7 +397,7 @@ function Gallery() {
               prev();
             }}
             aria-label="Vorheriges Bild"
-            className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full glass transition hover:text-primary"
+            className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
@@ -446,7 +408,7 @@ function Gallery() {
               next();
             }}
             aria-label="Nächstes Bild"
-            className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full glass transition hover:text-primary"
+            className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
@@ -461,8 +423,8 @@ function Gallery() {
               alt={gallery[index].title}
               className="max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl animate-scale-in"
             />
-            <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{gallery[index].title}</span>
+            <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-white/80">
+              <span className="font-medium text-white">{gallery[index].title}</span>
               <span className="tabular-nums">
                 {index + 1} / {gallery.length}
               </span>
@@ -485,20 +447,20 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
 
 function Footer() {
   return (
-    <footer className="mt-24 flex flex-col items-center gap-4 border-t border-border/60 pt-10 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-      <p>© {new Date().getFullYear()} homelab.local · gebaut mit Liebe & Strom</p>
+    <footer className="mt-24 flex flex-col items-center gap-4 border-t border-border pt-10 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+      <p>© {new Date().getFullYear()} unsere Erinnerungen · mit Liebe gemacht</p>
       <div className="flex gap-3">
         <a
           href="#"
           aria-label="GitHub"
-          className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 transition hover:text-foreground"
+          className="grid h-9 w-9 place-items-center rounded-full bg-white/70 ring-1 ring-border transition hover:text-primary"
         >
           <Github className="h-4 w-4" />
         </a>
         <a
           href="#"
           aria-label="Mail"
-          className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 transition hover:text-foreground"
+          className="grid h-9 w-9 place-items-center rounded-full bg-white/70 ring-1 ring-border transition hover:text-primary"
         >
           <Mail className="h-4 w-4" />
         </a>
