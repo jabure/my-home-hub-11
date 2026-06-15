@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Server,
   ExternalLink,
@@ -15,6 +15,12 @@ import {
   Activity,
   HardDrive,
   Cpu,
+  Film,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
 } from "lucide-react";
 import heroImg from "@/assets/hero.jpg";
 import g1 from "@/assets/gallery-1.jpg";
@@ -56,13 +62,19 @@ const services: Service[] = [
     description: "Mein Hauptprojekt — gehostet im Homelab.",
     status: "online",
   },
+  {
+    name: "Overseerr",
+    url: "https://seerr.xsellishimbeerkuchen.com",
+    description: "Film- & Serien-Requests für meinen Media-Stack.",
+    status: "online",
+  },
 ];
 
 const gallery = [
-  { src: g1, title: "Rack" },
-  { src: g2, title: "Workbench" },
-  { src: g3, title: "Patchpanel" },
-  { src: g4, title: "Battlestation" },
+  { src: g1, title: "Trauung" },
+  { src: g2, title: "Brautpaar" },
+  { src: g3, title: "Feier" },
+  { src: g4, title: "Erinnerung" },
 ];
 
 function Home() {
