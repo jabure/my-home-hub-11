@@ -15,7 +15,6 @@ import {
   Activity,
   HardDrive,
   Cpu,
-  Film,
   X,
   ChevronLeft,
   ChevronRight,
