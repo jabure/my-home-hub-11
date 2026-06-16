@@ -354,33 +354,87 @@ function Gallery() {
     return () => window.clearInterval(id);
   }, [index, playing, next]);
 
+  const [preview, setPreview] = useState(0);
+  useEffect(() => {
+    if (index !== null) return;
+    const id = window.setInterval(
+      () => setPreview((i) => (i + 1) % gallery.length),
+      4000,
+    );
+    return () => window.clearInterval(id);
+  }, [index]);
+
   return (
     <section id="gallery" className="pt-10">
       <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
-      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      <button
+        type="button"
+        onClick={() => setIndex(preview)}
+        aria-label="Galerie öffnen"
+        className="group relative mt-10 block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-border transition hover:shadow-2xl sm:aspect-[16/9]"
+      >
+        {gallery.map((g, i) => (
+          <img
+            key={g.src}
+            src={g.src}
+            alt={g.title}
+            loading={i === 0 ? "eager" : "lazy"}
+            width={1280}
+            height={1280}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1500ms] ease-in-out ${
+              i === preview ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        ))}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-5 sm:p-7">
+          <div className="text-white">
+            <p className="text-[10px] uppercase tracking-[0.25em] opacity-80">
+              {preview + 1} / {gallery.length}
+            </p>
+            <p className="mt-1 font-display text-lg font-semibold sm:text-2xl">
+              {gallery[preview].title}
+            </p>
+          </div>
+          <span className="hidden rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-foreground shadow-lg transition group-hover:bg-white sm:inline-block">
+            Galerie öffnen
+          </span>
+        </div>
+        <div className="absolute left-1/2 top-4 flex -translate-x-1/2 gap-1.5">
+          {gallery.map((g, i) => (
+            <span
+              key={g.src}
+              className={`h-1.5 rounded-full transition-all ${
+                i === preview ? "w-6 bg-white" : "w-1.5 bg-white/50"
+              }`}
+            />
+          ))}
+        </div>
+      </button>
+      <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
         {gallery.map((g, i) => (
           <button
             type="button"
             key={g.title}
-            onClick={() => setIndex(i)}
-            className={`group relative overflow-hidden rounded-3xl bg-white text-left shadow-md ring-1 ring-border transition hover:-translate-y-1 hover:shadow-xl ${
-              i === 0 ? "col-span-2 row-span-2 aspect-square sm:aspect-[4/5]" : "aspect-square"
+            onClick={() => setPreview(i)}
+            onDoubleClick={() => setIndex(i)}
+            aria-label={`Bild ${i + 1}: ${g.title}`}
+            className={`group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg ${
+              i === preview ? "ring-2 ring-primary" : ""
             }`}
           >
             <img
               src={g.src}
               alt={g.title}
               loading="lazy"
-              width={1024}
-              height={1024}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+              width={400}
+              height={400}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
             />
-            <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent p-3 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
-              {g.title}
-            </span>
           </button>
         ))}
       </div>
+
 
       {index !== null && (
         <div
