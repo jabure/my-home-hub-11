@@ -21,11 +21,15 @@ import {
   Pause,
   type LucideIcon,
 } from "lucide-react";
-import heroImg from "@/assets/hero.jpg";
+import hero1 from "@/assets/hero-1.jpg";
+import hero2 from "@/assets/hero-2.jpg";
+import hero3 from "@/assets/hero-3.jpg";
 import g1 from "@/assets/gallery-1.jpg";
 import g2 from "@/assets/gallery-2.jpg";
 import g3 from "@/assets/gallery-3.jpg";
 import g4 from "@/assets/gallery-4.jpg";
+
+const heroImages = [hero1, hero2, hero3];
 
 export const Route = createFileRoute("/")({
   head: () => ({
