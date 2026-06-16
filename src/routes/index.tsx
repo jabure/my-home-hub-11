@@ -96,7 +96,7 @@ function Home() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-8">
+      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-auto sm:max-w-6xl">
         <a href="#top" className="flex items-center gap-2 font-display font-semibold">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
             <Heart className="h-4 w-4" fill="currentColor" />
