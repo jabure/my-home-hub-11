@@ -21,11 +21,15 @@ import {
   Pause,
   type LucideIcon,
 } from "lucide-react";
-import heroImg from "@/assets/hero.jpg";
+import hero1 from "@/assets/hero-1.jpg";
+import hero2 from "@/assets/hero-2.jpg";
+import hero3 from "@/assets/hero-3.jpg";
 import g1 from "@/assets/gallery-1.jpg";
 import g2 from "@/assets/gallery-2.jpg";
 import g3 from "@/assets/gallery-3.jpg";
 import g4 from "@/assets/gallery-4.jpg";
+
+const heroImages = [hero1, hero2, hero3];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -70,10 +74,10 @@ const services: Service[] = [
 ];
 
 const gallery = [
-  { src: g1, title: "Trauung" },
-  { src: g2, title: "Brautpaar" },
-  { src: g3, title: "Feier" },
-  { src: g4, title: "Erinnerung" },
+  { src: g1, title: "Brautpaar im Abendlicht" },
+  { src: g2, title: "Familienmoment" },
+  { src: g3, title: "Ringtausch" },
+  { src: g4, title: "Festtafel bei Nacht" },
 ];
 
 function Home() {
@@ -92,7 +96,7 @@ function Home() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-8">
+      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-auto sm:max-w-6xl">
         <a href="#top" className="flex items-center gap-2 font-display font-semibold">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
             <Heart className="h-4 w-4" fill="currentColor" />
@@ -251,17 +255,34 @@ function WeatherButton() {
 }
 
 function Hero() {
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(
+      () => setActive((i) => (i + 1) % heroImages.length),
+      5000,
+    );
+    return () => window.clearInterval(id);
+  }, []);
   return (
-    <section id="top" className="relative mx-auto max-w-6xl px-5 pt-12 pb-16 sm:px-8 sm:pt-20">
+    <section
+      id="top"
+      className="relative mx-auto max-w-6xl px-5 pt-12 pb-16 sm:px-8 sm:pt-20"
+    >
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <img
-          src={heroImg}
-          alt=""
-          className="h-full w-full object-cover opacity-25"
-          width={1920}
-          height={1080}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/85 to-background" />
+        {heroImages.map((src, i) => (
+          <img
+            key={src}
+            src={src}
+            alt=""
+            aria-hidden="true"
+            width={1920}
+            height={1080}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[2000ms] ease-in-out ${
+              i === active ? "opacity-60" : "opacity-0"
+            }`}
+          />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
       </div>
       <div className="max-w-3xl">
         <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs uppercase tracking-widest text-muted-foreground ring-1 ring-border backdrop-blur">
@@ -288,6 +309,7 @@ function Hero() {
     </section>
   );
 }
+
 
 function Gallery() {
   const [index, setIndex] = useState<number | null>(null);
