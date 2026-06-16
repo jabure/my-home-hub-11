@@ -74,10 +74,10 @@ const services: Service[] = [
 ];
 
 const gallery = [
-  { src: g1, title: "Trauung" },
-  { src: g2, title: "Brautpaar" },
-  { src: g3, title: "Feier" },
-  { src: g4, title: "Erinnerung" },
+  { src: g1, title: "Brautpaar im Abendlicht" },
+  { src: g2, title: "Familienmoment" },
+  { src: g3, title: "Ringtausch" },
+  { src: g4, title: "Festtafel bei Nacht" },
 ];
 
 function Home() {
