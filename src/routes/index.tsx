@@ -609,7 +609,7 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
 function Footer() {
   return (
     <footer className="mt-24 flex flex-col items-center gap-4 border-t border-border pt-10 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-      <p>© {new Date().getFullYear()} unsere Erinnerungen · mit Liebe gemacht</p>
+      <p>© {new Date().getFullYear()} Xsellishimbeerkuchen · mit Liebe gemacht</p>
       <div className="flex gap-3">
         <a
           href="#"
