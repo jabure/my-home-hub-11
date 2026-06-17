@@ -14,6 +14,10 @@ import {
   Mail,
   Sparkles,
   Film,
+  Table2,
+  Droplets,
+  Gauge,
+  Thermometer,
   X,
   ChevronLeft,
   ChevronRight,
@@ -21,6 +25,7 @@ import {
   Pause,
   type LucideIcon,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
@@ -34,17 +39,17 @@ const heroImages = [hero1, hero2, hero3];
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Familienmomente — unsere Galerie" },
+      { title: "Xsellishimbeerkuchen — Familienmomente" },
       {
         name: "description",
         content:
-          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
+          "Xsellishimbeerkuchen: unsere Familien- und Hochzeitsgalerie mit Live-Wetter aus Wels und schnellen Links zu unseren Diensten.",
       },
-      { property: "og:title", content: "Familienmomente — unsere Galerie" },
+      { property: "og:title", content: "Xsellishimbeerkuchen" },
       {
         property: "og:description",
         content:
-          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
+          "Familien- und Hochzeitsgalerie mit Live-Wetter aus Wels und Links zu unseren Diensten.",
       },
     ],
   }),
@@ -71,6 +76,12 @@ const services: Service[] = [
     description: "Film- & Serien-Wünsche",
     icon: Film,
   },
+  {
+    name: "Neverwinter Stats",
+    url: "https://docs.google.com/spreadsheets/d/1JYtVHTx9tnE6n3MWL8CMxfCjqTj9QmdVocjiuqB_w3E/edit?usp=sharing",
+    description: "Stats Berechnen · Google Sheet",
+    icon: Table2,
+  },
 ];
 
 const gallery = [
@@ -96,12 +107,21 @@ function Home() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-auto sm:max-w-6xl">
-        <a href="#top" className="flex items-center gap-2 font-display font-semibold">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
-            <Heart className="h-4 w-4" fill="currentColor" />
+      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-4 py-2 glass sm:mx-auto sm:max-w-6xl sm:px-5">
+        <a href="#top" className="flex items-center gap-3 font-display font-semibold">
+          <img
+            src={logo}
+            alt="Xsellishimbeerkuchen Logo"
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 drop-shadow-sm"
+          />
+          <span className="hidden text-lg leading-none tracking-tight sm:inline">
+            Xsellishimbeerkuchen
           </span>
-          <span className="truncate">unsere Erinnerungen</span>
+          <span className="text-base leading-none tracking-tight sm:hidden">
+            Xsellis…
+          </span>
         </a>
         <QuickDock />
       </div>
@@ -111,12 +131,14 @@ function Nav() {
 
 function QuickDock() {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       <WeatherButton />
-      <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-      {services.map((s) => (
-        <ServiceButton key={s.name} service={s} />
-      ))}
+      <span className="mx-0.5 hidden h-7 w-px bg-border sm:block" />
+      <nav aria-label="Dienste" className="flex items-center gap-1.5">
+        {services.map((s) => (
+          <ServiceButton key={s.name} service={s} />
+        ))}
+      </nav>
     </div>
   );
 }
@@ -130,11 +152,12 @@ function ServiceButton({ service }: { service: Service }) {
         target="_blank"
         rel="noreferrer noopener"
         aria-label={name}
-        className="grid h-10 w-10 place-items-center rounded-full bg-white/60 text-foreground/70 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+        className="flex h-10 items-center gap-2 rounded-full bg-primary/10 px-2.5 text-sm font-medium text-primary ring-1 ring-primary/30 transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg hover:shadow-primary/30 sm:px-3.5"
       >
         <Icon className="h-4 w-4" />
+        <span className="hidden sm:inline">{name}</span>
       </a>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-56 origin-top-right scale-95 rounded-2xl p-3 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-60 origin-top-right scale-95 rounded-2xl p-3 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
         <div className="flex items-center justify-between gap-2">
           <p className="font-display text-sm font-semibold">{name}</p>
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
@@ -153,6 +176,13 @@ type WeatherData = {
   apparent: number;
   code: number;
   wind: number;
+  humidity: number;
+  pressure: number;
+  precipitation: number;
+  high: number;
+  low: number;
+  sunrise: string;
+  sunset: string;
 };
 
 const WMO: Record<number, { label: string; Icon: LucideIcon }> = {
@@ -185,15 +215,27 @@ function WeatherButton() {
 
   useEffect(() => {
     fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=48.1667&longitude=14.0333&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Europe%2FVienna",
+      "https://api.open-meteo.com/v1/forecast?latitude=48.1667&longitude=14.0333&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,surface_pressure,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Europe%2FVienna",
     )
       .then((r) => r.json())
       .then((j) => {
+        const fmt = (s: string) =>
+          new Date(s).toLocaleTimeString("de-AT", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
         setData({
           temp: Math.round(j.current.temperature_2m),
           apparent: Math.round(j.current.apparent_temperature),
           code: j.current.weather_code,
           wind: Math.round(j.current.wind_speed_10m),
+          humidity: Math.round(j.current.relative_humidity_2m),
+          pressure: Math.round(j.current.surface_pressure),
+          precipitation: j.current.precipitation ?? 0,
+          high: Math.round(j.daily.temperature_2m_max[0]),
+          low: Math.round(j.daily.temperature_2m_min[0]),
+          sunrise: fmt(j.daily.sunrise[0]),
+          sunset: fmt(j.daily.sunset[0]),
         });
       })
       .catch(() => setError(true));
@@ -207,49 +249,92 @@ function WeatherButton() {
       <button
         type="button"
         aria-label="Wetter in Wels"
-        className="flex h-10 items-center gap-1.5 rounded-full bg-white/60 px-3 text-sm font-medium text-foreground/80 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+        className="flex h-10 items-center gap-2 rounded-full bg-white/70 px-3.5 text-sm font-medium text-foreground/80 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
       >
         <Icon className="h-4 w-4" />
         <span className="tabular-nums">
           {data ? `${data.temp}°` : error ? "—" : "··"}
         </span>
+        <span className="hidden text-[11px] uppercase tracking-widest opacity-70 sm:inline">
+          Wels
+        </span>
       </button>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-64 origin-top-right scale-95 rounded-2xl p-4 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
+      <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-80 -translate-x-1/2 origin-top scale-95 rounded-2xl p-4 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100 sm:left-auto sm:right-0 sm:translate-x-0 sm:origin-top-right">
         <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
-            <Icon className="h-6 w-6" />
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary">
+            <Icon className="h-7 w-7" />
           </div>
-          <div>
-            <p className="font-display text-2xl font-semibold tabular-nums">
+          <div className="flex-1">
+            <p className="font-display text-3xl font-semibold tabular-nums leading-none">
               {data ? `${data.temp}°C` : "—"}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               {wmo?.label ?? (error ? "nicht verfügbar" : "lädt…")}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+              H: {data ? `${data.high}°` : "—"} · T: {data ? `${data.low}°` : "—"}
             </p>
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl bg-white/60 px-3 py-2 ring-1 ring-border">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Gefühlt
-            </p>
-            <p className="font-display font-semibold">
-              {data ? `${data.apparent}°` : "—"}
-            </p>
-          </div>
-          <div className="rounded-xl bg-white/60 px-3 py-2 ring-1 ring-border">
-            <p className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground">
-              <Wind className="h-3 w-3" /> Wind
-            </p>
-            <p className="font-display font-semibold">
-              {data ? `${data.wind} km/h` : "—"}
-            </p>
-          </div>
+          <Stat
+            icon={Thermometer}
+            label="Gefühlt"
+            value={data ? `${data.apparent}°` : "—"}
+          />
+          <Stat
+            icon={Wind}
+            label="Wind"
+            value={data ? `${data.wind} km/h` : "—"}
+          />
+          <Stat
+            icon={Droplets}
+            label="Luftfeuchte"
+            value={data ? `${data.humidity}%` : "—"}
+          />
+          <Stat
+            icon={Gauge}
+            label="Druck"
+            value={data ? `${data.pressure} hPa` : "—"}
+          />
+        </div>
+        <div className="mt-2 flex items-center justify-between rounded-xl bg-white/60 px-3 py-2 text-[11px] text-muted-foreground ring-1 ring-border">
+          <span className="flex items-center gap-1">
+            <Sun className="h-3 w-3 text-primary" />
+            {data ? data.sunrise : "—"}
+          </span>
+          <span className="flex items-center gap-1">
+            <CloudRain className="h-3 w-3 text-primary" />
+            {data ? `${data.precipitation} mm` : "—"}
+          </span>
+          <span className="flex items-center gap-1">
+            <Sun className="h-3 w-3 opacity-50" />
+            {data ? data.sunset : "—"}
+          </span>
         </div>
         <p className="mt-3 text-[10px] text-muted-foreground">
-          Wels · open-meteo.com
+          Wels, Oberösterreich · open-meteo.com
         </p>
       </div>
+    </div>
+  );
+}
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white/60 px-3 py-2 ring-1 ring-border">
+      <p className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+        <Icon className="h-3 w-3" /> {label}
+      </p>
+      <p className="font-display font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
@@ -524,7 +609,7 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
 function Footer() {
   return (
     <footer className="mt-24 flex flex-col items-center gap-4 border-t border-border pt-10 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-      <p>© {new Date().getFullYear()} unsere Erinnerungen · mit Liebe gemacht</p>
+      <p>© {new Date().getFullYear()} Xsellishimbeerkuchen · mit Liebe gemacht</p>
       <div className="flex gap-3">
         <a
           href="#"
