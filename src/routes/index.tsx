@@ -363,14 +363,14 @@ function Hero() {
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {heroImages.map((src, i) => (
           <img
-            key={src}
+            key={`${src}-${active}`}
             src={src}
             alt=""
             aria-hidden="true"
             width={1920}
             height={1080}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[2000ms] ease-in-out ${
-              i === active ? "opacity-60" : "opacity-0"
+              i === active ? "opacity-60 animate-ken-burns" : "opacity-0"
             }`}
           />
         ))}
@@ -461,7 +461,7 @@ function Gallery() {
       <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
       <button
         type="button"
-        onClick={() => setIndex(preview)}
+        onClick={() => { setIndex(preview); setPlaying(true); }}
         aria-label="Galerie öffnen"
         className="group relative mt-10 block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-border transition hover:shadow-2xl sm:aspect-[16/9]"
       >
@@ -509,7 +509,7 @@ function Gallery() {
             type="button"
             key={g.title}
             onClick={() => setPreview(i)}
-            onDoubleClick={() => setIndex(i)}
+            onDoubleClick={() => { setIndex(i); setPlaying(true); }}
             aria-label={`Bild ${i + 1}: ${g.title}`}
             className={`group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg ${
               i === preview ? "ring-2 ring-primary" : ""
@@ -521,7 +521,7 @@ function Gallery() {
               loading="lazy"
               width={400}
               height={400}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+              className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
             />
           </button>
         ))}
