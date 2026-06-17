@@ -509,7 +509,7 @@ function Gallery() {
             type="button"
             key={g.title}
             onClick={() => setPreview(i)}
-            onDoubleClick={() => setIndex(i)}
+            onDoubleClick={() => { setIndex(i); setPlaying(true); }}
             aria-label={`Bild ${i + 1}: ${g.title}`}
             className={`group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg ${
               i === preview ? "ring-2 ring-primary" : ""
@@ -521,7 +521,7 @@ function Gallery() {
               loading="lazy"
               width={400}
               height={400}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+              className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
             />
           </button>
         ))}
