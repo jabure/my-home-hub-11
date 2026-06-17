@@ -18,6 +18,7 @@ import {
   Droplets,
   Gauge,
   Thermometer,
+  Youtube,
   X,
   ChevronLeft,
   ChevronRight,
@@ -81,6 +82,12 @@ const services: Service[] = [
     url: "https://docs.google.com/spreadsheets/d/1JYtVHTx9tnE6n3MWL8CMxfCjqTj9QmdVocjiuqB_w3E/edit?usp=sharing",
     description: "Stats Berechnen · Google Sheet",
     icon: Table2,
+  },
+  {
+    name: "YouTube",
+    url: "https://www.youtube.com/@Xsellisecj",
+    description: "Unser YouTube-Kanal",
+    icon: Youtube,
   },
 ];
 
