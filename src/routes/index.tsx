@@ -39,17 +39,17 @@ const heroImages = [hero1, hero2, hero3];
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Familienmomente — unsere Galerie" },
+      { title: "Xsellishimbeerkuchen — Familienmomente" },
       {
         name: "description",
         content:
-          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
+          "Xsellishimbeerkuchen: unsere Familien- und Hochzeitsgalerie mit Live-Wetter aus Wels und schnellen Links zu unseren Diensten.",
       },
-      { property: "og:title", content: "Familienmomente — unsere Galerie" },
+      { property: "og:title", content: "Xsellishimbeerkuchen" },
       {
         property: "og:description",
         content:
-          "Eine warme Sammlung unserer schönsten Familien- und Hochzeitsbilder, mit Live-Wetter aus Wels.",
+          "Familien- und Hochzeitsgalerie mit Live-Wetter aus Wels und Links zu unseren Diensten.",
       },
     ],
   }),
