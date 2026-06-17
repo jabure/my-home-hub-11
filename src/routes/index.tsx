@@ -76,6 +76,12 @@ const services: Service[] = [
     description: "Film- & Serien-Wünsche",
     icon: Film,
   },
+  {
+    name: "Neverwinter Stats",
+    url: "https://docs.google.com/spreadsheets/d/1JYtVHTx9tnE6n3MWL8CMxfCjqTj9QmdVocjiuqB_w3E/edit?usp=sharing",
+    description: "Stats Berechnen · Google Sheet",
+    icon: Table2,
+  },
 ];
 
 const gallery = [
