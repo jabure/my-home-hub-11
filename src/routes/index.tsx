@@ -176,6 +176,13 @@ type WeatherData = {
   apparent: number;
   code: number;
   wind: number;
+  humidity: number;
+  pressure: number;
+  precipitation: number;
+  high: number;
+  low: number;
+  sunrise: string;
+  sunset: string;
 };
 
 const WMO: Record<number, { label: string; Icon: LucideIcon }> = {
