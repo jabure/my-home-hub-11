@@ -363,14 +363,14 @@ function Hero() {
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {heroImages.map((src, i) => (
           <img
-            key={src}
+            key={`${src}-${active}`}
             src={src}
             alt=""
             aria-hidden="true"
             width={1920}
             height={1080}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[2000ms] ease-in-out ${
-              i === active ? "opacity-60" : "opacity-0"
+              i === active ? "opacity-60 animate-ken-burns" : "opacity-0"
             }`}
           />
         ))}
