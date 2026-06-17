@@ -97,3 +97,9 @@
   50% { transform: translateY(-10px); }
 }
 @utility animate-float { animation: float-slow 6s ease-in-out infinite; }
+
+@keyframes ken-burns {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.12) translate(-2%, -1%); }
+}
+@utility animate-ken-burns { animation: ken-burns 8s ease-out forwards; }
