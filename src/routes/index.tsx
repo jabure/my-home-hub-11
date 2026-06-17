@@ -83,6 +83,12 @@ const services: Service[] = [
     description: "Stats Berechnen · Google Sheet",
     icon: Table2,
   },
+  {
+    name: "YouTube",
+    url: "https://www.youtube.com/@Xsellisecj",
+    description: "Unser YouTube-Kanal",
+    icon: Youtube,
+  },
 ];
 
 const gallery = [
