@@ -18,6 +18,7 @@ import {
   Droplets,
   Gauge,
   Thermometer,
+  Youtube,
   X,
   ChevronLeft,
   ChevronRight,
