@@ -461,7 +461,7 @@ function Gallery() {
       <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
       <button
         type="button"
-        onClick={() => setIndex(preview)}
+        onClick={() => { setIndex(preview); setPlaying(true); }}
         aria-label="Galerie öffnen"
         className="group relative mt-10 block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-border transition hover:shadow-2xl sm:aspect-[16/9]"
       >
