@@ -107,12 +107,21 @@ function Home() {
 function Nav() {
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-5 py-2.5 glass sm:mx-auto sm:max-w-6xl">
-        <a href="#top" className="flex items-center gap-2 font-display font-semibold">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
-            <Heart className="h-4 w-4" fill="currentColor" />
+      <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-full px-4 py-2 glass sm:mx-auto sm:max-w-6xl sm:px-5">
+        <a href="#top" className="flex items-center gap-3 font-display font-semibold">
+          <img
+            src={logo}
+            alt="Xsellishimbeerkuchen Logo"
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 drop-shadow-sm"
+          />
+          <span className="hidden text-lg leading-none tracking-tight sm:inline">
+            Xsellishimbeerkuchen
           </span>
-          <span className="truncate">unsere Erinnerungen</span>
+          <span className="text-base leading-none tracking-tight sm:hidden">
+            Xsellis…
+          </span>
         </a>
         <QuickDock />
       </div>
@@ -122,12 +131,14 @@ function Nav() {
 
 function QuickDock() {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       <WeatherButton />
-      <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-      {services.map((s) => (
-        <ServiceButton key={s.name} service={s} />
-      ))}
+      <span className="mx-0.5 hidden h-7 w-px bg-border sm:block" />
+      <nav aria-label="Dienste" className="flex items-center gap-1.5">
+        {services.map((s) => (
+          <ServiceButton key={s.name} service={s} />
+        ))}
+      </nav>
     </div>
   );
 }
@@ -141,11 +152,12 @@ function ServiceButton({ service }: { service: Service }) {
         target="_blank"
         rel="noreferrer noopener"
         aria-label={name}
-        className="grid h-10 w-10 place-items-center rounded-full bg-white/60 text-foreground/70 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+        className="flex h-10 items-center gap-2 rounded-full bg-primary/10 px-2.5 text-sm font-medium text-primary ring-1 ring-primary/30 transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg hover:shadow-primary/30 sm:px-3.5"
       >
         <Icon className="h-4 w-4" />
+        <span className="hidden sm:inline">{name}</span>
       </a>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-56 origin-top-right scale-95 rounded-2xl p-3 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-60 origin-top-right scale-95 rounded-2xl p-3 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100">
         <div className="flex items-center justify-between gap-2">
           <p className="font-display text-sm font-semibold">{name}</p>
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
