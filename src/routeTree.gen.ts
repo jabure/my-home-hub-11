@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGalleryRouteImport } from './routes/api/gallery'
 import { Route as ApiGalleryAuthRouteImport } from './routes/api/gallery-auth'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiWeatherConfigRouteImport } from './routes/api/weather-config'
 import { Route as ApiGalleryFilenameRouteImport } from './routes/api/gallery/$filename'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +31,16 @@ const ApiGalleryAuthRoute = ApiGalleryAuthRouteImport.update({
   path: '/api/gallery-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWeatherConfigRoute = ApiWeatherConfigRouteImport.update({
+  id: '/api/weather-config',
+  path: '/api/weather-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGalleryFilenameRoute = ApiGalleryFilenameRouteImport.update({
   id: '/$filename',
   path: '/$filename',
@@ -39,12 +51,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesById {
@@ -52,19 +68,34 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/gallery' | '/api/gallery-auth' | '/api/gallery/$filename'
+    | '/'
+    | '/api/gallery'
+    | '/api/gallery-auth'
+    | '/api/health'
+    | '/api/weather-config'
+    | '/api/gallery/$filename'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/gallery' | '/api/gallery-auth' | '/api/gallery/$filename'
+  to:
+    | '/'
+    | '/api/gallery'
+    | '/api/gallery-auth'
+    | '/api/health'
+    | '/api/weather-config'
+    | '/api/gallery/$filename'
   id:
     | '__root__'
     | '/'
     | '/api/gallery'
     | '/api/gallery-auth'
+    | '/api/health'
+    | '/api/weather-config'
     | '/api/gallery/$filename'
   fileRoutesById: FileRoutesById
 }
@@ -72,6 +103,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiGalleryRoute: typeof ApiGalleryRouteWithChildren
   ApiGalleryAuthRoute: typeof ApiGalleryAuthRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiWeatherConfigRoute: typeof ApiWeatherConfigRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -95,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/api/gallery-auth'
       fullPath: '/api/gallery-auth'
       preLoaderRoute: typeof ApiGalleryAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/weather-config': {
+      id: '/api/weather-config'
+      path: '/api/weather-config'
+      fullPath: '/api/weather-config'
+      preLoaderRoute: typeof ApiWeatherConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/gallery/$filename': {
@@ -123,6 +170,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiGalleryRoute: ApiGalleryRouteWithChildren,
   ApiGalleryAuthRoute: ApiGalleryAuthRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiWeatherConfigRoute: ApiWeatherConfigRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
