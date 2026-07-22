@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { GALLERY_COOKIE_NAME, getGalleryPin } from "@/lib/gallery-fs";
+import {
+  GALLERY_COOKIE_NAME,
+  getGalleryPin,
+  getClientKey,
+  isLockedOut,
+  registerFailedAttempt,
+  clearAttempts,
+} from "@/lib/gallery-fs";
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
@@ -7,6 +14,18 @@ export const Route = createFileRoute("/api/gallery-auth")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const clientKey = getClientKey(request);
+        const remaining = isLockedOut(clientKey);
+        if (remaining > 0) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              lockedForSeconds: Math.ceil(remaining / 1000),
+            }),
+            { status: 429, headers: { "content-type": "application/json" } },
+          );
+        }
+
         let pin = "";
         try {
           const body = await request.json();
@@ -26,12 +45,14 @@ export const Route = createFileRoute("/api/gallery-auth")({
           );
         }
         if (pin !== expected) {
+          registerFailedAttempt(clientKey);
           return new Response(JSON.stringify({ ok: false }), {
             status: 401,
             headers: { "content-type": "application/json" },
           });
         }
 
+        clearAttempts(clientKey);
         const headers = new Headers({ "content-type": "application/json" });
         headers.append(
           "Set-Cookie",
