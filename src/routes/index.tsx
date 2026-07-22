@@ -64,7 +64,7 @@ type Service = {
 const services: Service[] = [
   {
     name: "Neverwinter Stats",
-    url: "https://docs.google.com/spreadsheets/d/1JYtVHTx9tnE6n3MWL8CMxfCjqTj9QmdVocjiuqB_w3E/edit?usp=sharing",
+    url: "https://xsellinwstats.com",
     description: "Stats Berechnen · Google Sheet",
     icon: Table2,
   },
@@ -427,7 +427,7 @@ function Gallery() {
       setSubmitting(true);
       setPinError(false);
       try {
-        const res = await fetch("/api/gallery/auth", {
+        const res = await fetch("/api/gallery-auth", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ pin }),
