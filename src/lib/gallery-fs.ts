@@ -1,4 +1,5 @@
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 
 // Ordner, in den einfach Bilder abgelegt werden können (per Docker-Volume gemountet).
 // Kann per Umgebungsvariable GALLERY_DIR überschrieben werden.
@@ -37,6 +38,28 @@ export function titleFromFilename(filename: string): string {
     .join(" ");
 }
 
+// Optional: eine "captions.json" im Galerie-Ordner erlaubt eigene Titel/Reihenfolge,
+// ohne Dateien umbenennen zu müssen.
+// Format: { "order": ["b.jpg", "a.jpg"], "captions": { "a.jpg": "Mein Titel" } }
+type CaptionsFile = {
+  order?: string[];
+  captions?: Record<string, string>;
+};
+
+export async function readCaptionsFile(): Promise<CaptionsFile> {
+  try {
+    const raw = await readFile(path.join(GALLERY_DIR, "captions.json"), "utf-8");
+    const parsed = JSON.parse(raw);
+    return {
+      order: Array.isArray(parsed.order) ? parsed.order.filter((x: unknown) => typeof x === "string") : undefined,
+      captions:
+        parsed.captions && typeof parsed.captions === "object" ? parsed.captions : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function getGalleryPin(): string | undefined {
   return process.env.GALLERY_PIN;
 }
@@ -57,4 +80,51 @@ export function safeGalleryFilePath(filename: string): string | null {
     return null;
   }
   return resolved;
+}
+
+// --- Einfaches In-Memory Rate-Limiting für die PIN-Eingabe ---
+// Schützt vor Durchprobieren; reicht für einen einzelnen Server-Prozess.
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 60_000;
+
+type AttemptState = { count: number; lockedUntil: number };
+const attempts = new Map<string, AttemptState>();
+
+export function getClientKey(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+export function isLockedOut(key: string): number {
+  const state = attempts.get(key);
+  if (!state) return 0;
+  const remaining = state.lockedUntil - Date.now();
+  return remaining > 0 ? remaining : 0;
+}
+
+export function registerFailedAttempt(key: string): void {
+  const now = Date.now();
+  const state = attempts.get(key) ?? { count: 0, lockedUntil: 0 };
+  state.count += 1;
+  if (state.count >= MAX_ATTEMPTS) {
+    state.lockedUntil = now + LOCKOUT_MS;
+    state.count = 0;
+  }
+  attempts.set(key, state);
+}
+
+export function clearAttempts(key: string): void {
+  attempts.delete(key);
+}
+
+// --- Wetter-Standort (per Umgebungsvariable überschreibbar) ---
+export function getWeatherConfig() {
+  return {
+    lat: Number(process.env.WEATHER_LAT ?? "48.1667"),
+    lon: Number(process.env.WEATHER_LON ?? "14.0333"),
+    name: process.env.WEATHER_LOCATION_NAME ?? "Wels",
+  };
 }
