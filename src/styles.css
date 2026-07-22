@@ -72,7 +72,6 @@
       radial-gradient(60rem 40rem at 10% -10%, oklch(0.85 0.1 60 / 0.4), transparent 60%),
       radial-gradient(50rem 35rem at 110% 10%, oklch(0.85 0.08 150 / 0.35), transparent 60%),
       radial-gradient(40rem 30rem at 50% 120%, oklch(0.9 0.06 30 / 0.3), transparent 60%);
-    background-attachment: fixed;
   }
   h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
