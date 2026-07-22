@@ -13,4 +13,10 @@ services:
     volumes:
       # Bilder hier reinlegen -> erscheinen automatisch in der Galerie
       - ./gallery-images:/data/gallery
+    networks:
+      - proxy
     restart: unless-stopped
+
+networks:
+  proxy:
+    external: true
