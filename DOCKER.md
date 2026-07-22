@@ -10,19 +10,14 @@
 ### Mit Docker Compose (empfohlen)
 
 ```bash
-# Image bauen und Container starten
 docker compose up --build -d
-
 # App ist dann unter http://localhost:3000 erreichbar
 ```
 
 ### Nur Docker
 
 ```bash
-# Image bauen
 docker build -t familienmomente .
-
-# Container starten (Ordner + PIN wie in docker-compose.yml)
 docker run -d -p 3000:3000 \
   -e GALLERY_DIR=/data/gallery \
   -e GALLERY_PIN=1234 \
@@ -35,20 +30,56 @@ docker run -d -p 3000:3000 \
 Die Galerie liest ihre Bilder direkt aus einem Ordner am Server – es ist **kein Rebuild und kein Redeploy nötig**:
 
 1. Lege Bild-Dateien (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.avif`) in den Ordner `./gallery-images` neben der `docker-compose.yml`.
-2. Die Bilder erscheinen automatisch in der Galerie auf der Website (kurz neu laden reicht).
-3. Die Reihenfolge richtet sich nach dem Dateinamen (alphabetisch). Mit einer Zahl am Anfang lässt sich die Reihenfolge steuern, z. B.:
-   - `01-brautpaar-abendlicht.jpg`
-   - `02-familienmoment.jpg`
-   - `03-ringtausch.jpg`
-4. Der Bildtitel wird automatisch aus dem Dateinamen erzeugt (Zahl am Anfang und Bindestriche/Unterstriche werden entfernt): `01-brautpaar-abendlicht.jpg` → **„Brautpaar Abendlicht"**.
+2. Die Bilder erscheinen automatisch in der Galerie (kurz neu laden reicht).
+3. Standard-Reihenfolge: alphabetisch nach Dateiname, z. B. `01-hochzeit.jpg`, `02-familie.jpg`.
+4. Titel werden automatisch aus dem Dateinamen erzeugt: `01-brautpaar-abendlicht.jpg` → **„Brautpaar Abendlicht"**.
 
-## Galerie-PIN
+### Eigene Reihenfolge & Titel (optional)
 
-Die Galerie ist mit einer PIN geschützt (Familienfotos, nicht öffentlich).
+Lege eine Datei `captions.json` in denselben Ordner (`./gallery-images/captions.json`):
 
-- PIN wird über die Umgebungsvariable `GALLERY_PIN` in `docker-compose.yml` gesetzt (Standard: `1234` – **bitte unbedingt ändern**).
-- Nach korrekter Eingabe wird ein Cookie gesetzt (`gallery_access`, 30 Tage gültig), damit man die PIN nicht bei jedem Besuch neu eingeben muss.
-- Ohne gültigen Zugriff liefert der Server auch bei direktem Bildaufruf `401 Unauthorized` – die Fotos sind also auch nicht per Direktlink oder Google Bilder-Suche erreichbar.
+```json
+{
+  "order": ["hochzeit.jpg", "familie.jpg", "ringtausch.jpg"],
+  "captions": {
+    "hochzeit.jpg": "Unser großer Tag",
+    "familie.jpg": "Zusammen"
+  }
+}
+```
+
+- `order`: erzwingt eine bestimmte Reihenfolge (alles Übrige wird danach alphabetisch angehängt)
+- `captions`: überschreibt den automatisch erzeugten Titel für einzelne Dateien
+
+Beide Felder sind optional – du kannst auch nur eines von beiden angeben.
+
+## Galerie-PIN & Bruteforce-Schutz
+
+- PIN wird über `GALLERY_PIN` in `docker-compose.yml` gesetzt (Standard `1234` – **bitte ändern**).
+- Nach korrekter Eingabe wird ein Cookie gesetzt (`gallery_access`, 30 Tage gültig).
+- Ohne gültigen Zugriff liefert der Server auch bei direktem Bildaufruf `401 Unauthorized`.
+- Nach **5 falschen Versuchen** wird die Eingabe für **60 Sekunden** gesperrt (pro IP-Adresse), um Durchprobieren zu erschweren.
+
+## Wetter-Standort anpassen
+
+Standardmäßig zeigt das Wetter-Widget Wels, Oberösterreich. Zum Ändern in `docker-compose.yml`:
+
+```yaml
+environment:
+  - WEATHER_LAT=48.2082
+  - WEATHER_LON=16.3738
+  - WEATHER_LOCATION_NAME=Wien
+```
+
+## Health-Check
+
+Die App bietet einen einfachen Health-Check-Endpunkt unter `/api/health` (Antwort: `{"status":"ok"}`).
+Docker Compose prüft diesen automatisch alle 30 Sekunden (`docker compose ps` zeigt den Status an).
+Praktisch auch für externes Monitoring, z. B. Uptime Kuma.
+
+## Favicon & Link-Vorschau
+
+Favicons (Browser-Tab, Homescreen-Icon) und ein Vorschaubild für geteilte Links (z. B. in WhatsApp) sind bereits enthalten – dafür ist nichts weiter zu tun.
 
 ## Konfiguration
 
@@ -62,16 +93,15 @@ ports:
 ## Wichtige Hinweise
 
 - Die App wird mit dem **Nitro `node-server` Preset** gebaut (für reine Node.js-Umgebungen)
-- SSR (Server-Side Rendering) ist aktiviert – die Seite wird serverseitig vorgerendert
-- Alle Routen werden korrekt von der Node.js-Server-Anwendung bedient
-- Das Image basiert auf **Node.js 22 Alpine** für minimale Größe
-- Bilder werden **nicht** ins Docker-Image eingebaut, sondern zur Laufzeit aus dem gemounteten Ordner `gallery-images` gelesen
+- SSR (Server-Side Rendering) ist aktiviert
+- Bilder werden zur Laufzeit aus dem gemounteten Ordner `gallery-images` gelesen, nicht ins Image eingebaut
+- Hero-Bilder sind als WebP eingebettet (deutlich kleiner als die ursprünglichen JPGs, schnellere Ladezeit)
 
 ## Dateien
 
 | Datei | Zweck |
 |-------|-------|
-| `Dockerfile` | Multi-Stage Build (Bun Builder → Node Runner) |
-| `docker-compose.yml` | Docker Compose Konfiguration inkl. Galerie-Ordner & PIN |
+| `Dockerfile` | Multi-Stage Build (Bun Builder → Node Runner) inkl. Healthcheck |
+| `docker-compose.yml` | Docker Compose Konfiguration inkl. Galerie-Ordner, PIN, Wetter-Standort, Healthcheck |
 | `.dockerignore` | Ausschluss unnötiger Dateien vom Build |
-| `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden |
+| `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden (optional mit `captions.json`) |
