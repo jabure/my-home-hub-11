@@ -65,7 +65,7 @@ const services: Service[] = [
   {
     name: "Neverwinter Stats",
     url: "https://xsellinwstats.com",
-    description: "Stats Berechnen · Google Sheet",
+    description: "Stats Berechnen",
     icon: Table2,
   },
   {
