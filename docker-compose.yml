@@ -7,4 +7,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - GALLERY_DIR=/data/gallery
+      # PIN, mit der die Galerie entsperrt wird (bitte anpassen!)
+      - GALLERY_PIN=1234
+    volumes:
+      # Bilder hier reinlegen -> erscheinen automatisch in der Galerie
+      - ./gallery-images:/data/gallery
     restart: unless-stopped
