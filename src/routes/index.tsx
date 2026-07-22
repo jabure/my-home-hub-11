@@ -10,10 +10,6 @@ import {
   CloudLightning,
   CloudFog,
   Wind,
-  Github,
-  Mail,
-  Sparkles,
-  Film,
   Table2,
   Droplets,
   Gauge,
@@ -24,16 +20,15 @@ import {
   ChevronRight,
   Play,
   Pause,
+  Lock,
+  Loader2,
+  ImageOff,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
-import g1 from "@/assets/gallery-1.jpg";
-import g2 from "@/assets/gallery-2.jpg";
-import g3 from "@/assets/gallery-3.jpg";
-import g4 from "@/assets/gallery-4.jpg";
 
 const heroImages = [hero1, hero2, hero3];
 
@@ -68,18 +63,6 @@ type Service = {
 
 const services: Service[] = [
   {
-    name: "Lemorium",
-    url: "https://Lemorium.xsellishimbeerkuchen.com",
-    description: "Unsere Hauptseite",
-    icon: Sparkles,
-  },
-  {
-    name: "Overseerr",
-    url: "https://seerr.xsellishimbeerkuchen.com",
-    description: "Film- & Serien-Wünsche",
-    icon: Film,
-  },
-  {
     name: "Neverwinter Stats",
     url: "https://docs.google.com/spreadsheets/d/1JYtVHTx9tnE6n3MWL8CMxfCjqTj9QmdVocjiuqB_w3E/edit?usp=sharing",
     description: "Stats Berechnen · Google Sheet",
@@ -93,14 +76,12 @@ const services: Service[] = [
   },
 ];
 
-const gallery = [
-  { src: g1, title: "Brautpaar im Abendlicht" },
-  { src: g2, title: "Familienmoment" },
-  { src: g3, title: "Ringtausch" },
-  { src: g4, title: "Festtafel bei Nacht" },
-];
+type GalleryItem = {
+  src: string;
+  title: string;
+};
 
-// Verhindert Rechtsklick / Drag auf Bilder
+// Verhindert Rechtsklick / Drag / Referrer-Leak auf Bildern
 function protectedImgProps() {
   return {
     draggable: false as const,
@@ -116,7 +97,6 @@ function Home() {
       <Hero />
       <main className="mx-auto max-w-6xl px-5 pb-32 sm:px-8">
         <Gallery />
-        <Footer />
       </main>
     </div>
   );
@@ -415,23 +395,138 @@ function Hero() {
   );
 }
 
-
 function Gallery() {
+  const [status, setStatus] = useState<"checking" | "locked" | "unlocked">("checking");
+  const [items, setItems] = useState<GalleryItem[]>([]);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadGallery = useCallback(async () => {
+    try {
+      const res = await fetch("/api/gallery");
+      if (res.status === 401) {
+        setStatus("locked");
+        return;
+      }
+      const data = await res.json();
+      setItems(data.items ?? []);
+      setStatus("unlocked");
+    } catch {
+      setStatus("locked");
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGallery();
+  }, [loadGallery]);
+
+  const submitPin = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setSubmitting(true);
+      setPinError(false);
+      try {
+        const res = await fetch("/api/gallery/auth", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pin }),
+        });
+        if (!res.ok) {
+          setPinError(true);
+          setSubmitting(false);
+          return;
+        }
+        setPin("");
+        await loadGallery();
+      } catch {
+        setPinError(true);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [pin, loadGallery],
+  );
+
+  return (
+    <section id="gallery" className="pt-10">
+      <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
+
+      {status === "checking" && (
+        <div className="mt-10 flex aspect-[16/9] w-full items-center justify-center rounded-3xl bg-white ring-1 ring-border">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {status === "locked" && (
+        <form
+          onSubmit={submitPin}
+          className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl ring-1 ring-border"
+        >
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary">
+            <Lock className="h-7 w-7" />
+          </div>
+          <div>
+            <p className="font-display text-lg font-semibold">Geschützter Bereich</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Bitte PIN eingeben, um die Familienfotos zu sehen.
+            </p>
+          </div>
+          <input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            value={pin}
+            onChange={(e) => {
+              setPin(e.target.value);
+              setPinError(false);
+            }}
+            placeholder="PIN"
+            className="w-40 rounded-full border border-input bg-background px-4 py-2 text-center text-lg tracking-[0.3em] outline-none ring-primary/40 focus:ring-2"
+          />
+          {pinError && (
+            <p className="text-sm text-destructive">Falsche PIN, bitte nochmal versuchen.</p>
+          )}
+          <button
+            type="submit"
+            disabled={submitting || pin.length === 0}
+            className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
+          >
+            {submitting ? "Prüfe…" : "Entsperren"}
+          </button>
+        </form>
+      )}
+
+      {status === "unlocked" && items.length === 0 && (
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-3xl bg-white p-16 text-center ring-1 ring-border">
+          <ImageOff className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Noch keine Bilder im Galerie-Ordner am Server.
+          </p>
+        </div>
+      )}
+
+      {status === "unlocked" && items.length > 0 && <GalleryViewer items={items} />}
+    </section>
+  );
+}
+
+function GalleryViewer({ items }: { items: GalleryItem[] }) {
   const [index, setIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [preview, setPreview] = useState(0);
 
   const close = useCallback(() => {
     setIndex(null);
     setPlaying(false);
   }, []);
   const next = useCallback(
-    () => setIndex((i) => (i === null ? i : (i + 1) % gallery.length)),
-    [],
+    () => setIndex((i) => (i === null ? i : (i + 1) % items.length)),
+    [items.length],
   );
   const prev = useCallback(
-    () =>
-      setIndex((i) => (i === null ? i : (i - 1 + gallery.length) % gallery.length)),
-    [],
+    () => setIndex((i) => (i === null ? i : (i - 1 + items.length) % items.length)),
+    [items.length],
   );
 
   useEffect(() => {
@@ -459,33 +554,32 @@ function Gallery() {
     return () => window.clearInterval(id);
   }, [index, playing, next]);
 
-  const [preview, setPreview] = useState(0);
   useEffect(() => {
     if (index !== null) return;
     const id = window.setInterval(
-      () => setPreview((i) => (i + 1) % gallery.length),
+      () => setPreview((i) => (i + 1) % items.length),
       4000,
     );
     return () => window.clearInterval(id);
-  }, [index]);
+  }, [index, items.length]);
 
   return (
-    <section id="gallery" className="pt-10">
-      <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
+    <>
       <button
         type="button"
-        onClick={() => { setIndex(preview); setPlaying(true); }}
+        onClick={() => {
+          setIndex(preview);
+          setPlaying(true);
+        }}
         aria-label="Galerie öffnen"
         className="group relative mt-10 block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-border transition hover:shadow-2xl sm:aspect-[16/9]"
       >
-        {gallery.map((g, i) => (
+        {items.map((g, i) => (
           <img
             key={g.src}
             src={g.src}
             alt={g.title}
             loading={i === 0 ? "eager" : "lazy"}
-            width={1280}
-            height={1280}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1500ms] ease-in-out ${
               i === preview ? "opacity-100" : "opacity-0"
             }`}
@@ -496,10 +590,10 @@ function Gallery() {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-5 sm:p-7">
           <div className="text-white">
             <p className="text-[10px] uppercase tracking-[0.25em] opacity-80">
-              {preview + 1} / {gallery.length}
+              {preview + 1} / {items.length}
             </p>
             <p className="mt-1 font-display text-lg font-semibold sm:text-2xl">
-              {gallery[preview].title}
+              {items[preview].title}
             </p>
           </div>
           <span className="hidden rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-foreground shadow-lg transition group-hover:bg-white sm:inline-block">
@@ -507,7 +601,7 @@ function Gallery() {
           </span>
         </div>
         <div className="absolute left-1/2 top-4 flex -translate-x-1/2 gap-1.5">
-          {gallery.map((g, i) => (
+          {items.map((g, i) => (
             <span
               key={g.src}
               className={`h-1.5 rounded-full transition-all ${
@@ -517,13 +611,17 @@ function Gallery() {
           ))}
         </div>
       </button>
+
       <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
-        {gallery.map((g, i) => (
+        {items.map((g, i) => (
           <button
             type="button"
-            key={g.title}
+            key={g.src}
             onClick={() => setPreview(i)}
-            onDoubleClick={() => { setIndex(i); setPlaying(true); }}
+            onDoubleClick={() => {
+              setIndex(i);
+              setPlaying(true);
+            }}
             aria-label={`Bild ${i + 1}: ${g.title}`}
             className={`group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg ${
               i === preview ? "ring-2 ring-primary" : ""
@@ -533,8 +631,6 @@ function Gallery() {
               src={g.src}
               alt={g.title}
               loading="lazy"
-              width={400}
-              height={400}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
               {...protectedImgProps()}
             />
@@ -542,14 +638,13 @@ function Gallery() {
         ))}
       </div>
 
-
       {index !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-xl animate-fade-in"
           onClick={close}
           role="dialog"
           aria-modal="true"
-          aria-label={gallery[index].title}
+          aria-label={items[index].title}
         >
           <button
             type="button"
@@ -601,22 +696,22 @@ function Gallery() {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              key={gallery[index].src}
-              src={gallery[index].src}
-              alt={gallery[index].title}
+              key={items[index].src}
+              src={items[index].src}
+              alt={items[index].title}
               className="max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl animate-scale-in"
               {...protectedImgProps()}
             />
             <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-white/80">
-              <span className="font-medium text-white">{gallery[index].title}</span>
+              <span className="font-medium text-white">{items[index].title}</span>
               <span className="tabular-nums">
-                {index + 1} / {gallery.length}
+                {index + 1} / {items.length}
               </span>
             </figcaption>
           </figure>
         </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -626,29 +721,5 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
       <span className="text-xs uppercase tracking-[0.25em] text-primary">{eyebrow}</span>
       <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{title}</h2>
     </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="mt-24 flex flex-col items-center gap-4 border-t border-border pt-10 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-      <p>© {new Date().getFullYear()} Xsellishimbeerkuchen · mit Liebe gemacht</p>
-      <div className="flex gap-3">
-        <a
-          href="#"
-          aria-label="GitHub"
-          className="grid h-9 w-9 place-items-center rounded-full bg-white/70 ring-1 ring-border transition hover:text-primary"
-        >
-          <Github className="h-4 w-4" />
-        </a>
-        <a
-          href="#"
-          aria-label="Mail"
-          className="grid h-9 w-9 place-items-center rounded-full bg-white/70 ring-1 ring-border transition hover:text-primary"
-        >
-          <Mail className="h-4 w-4" />
-        </a>
-      </div>
-    </footer>
   );
 }
