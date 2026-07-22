@@ -21,14 +21,13 @@ import {
   Play,
   Pause,
   Lock,
-  Loader2,
   ImageOff,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
-import hero1 from "@/assets/hero-1.jpg";
-import hero2 from "@/assets/hero-2.jpg";
-import hero3 from "@/assets/hero-3.jpg";
+import hero1 from "@/assets/hero-1.webp";
+import hero2 from "@/assets/hero-2.webp";
+import hero3 from "@/assets/hero-3.webp";
 
 const heroImages = [hero1, hero2, hero3];
 
@@ -49,6 +48,8 @@ export const Route = createFileRoute("/")({
       },
       // Verhindert, dass Google Bilder die Fotos indiziert
       { name: "robots", content: "noimageindex, nosnippet" },
+      { property: "og:image", content: "/og-image.jpg" },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: Home,
@@ -211,13 +212,23 @@ const WMO: Record<number, { label: string; Icon: LucideIcon }> = {
 function WeatherButton() {
   const [data, setData] = useState<WeatherData | null>(null);
   const [error, setError] = useState(false);
+  const [locationName, setLocationName] = useState("Wels");
 
   useEffect(() => {
-    fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=48.1667&longitude=14.0333&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,surface_pressure,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Europe%2FVienna",
-    )
+    let cancelled = false;
+
+    fetch("/api/weather-config")
       .then((r) => r.json())
+      .then((cfg: { lat: number; lon: number; name: string }) => {
+        if (cancelled) return;
+        setLocationName(cfg.name);
+        return fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,surface_pressure,precipitation&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Europe%2FVienna`,
+        );
+      })
+      .then((r) => r?.json())
       .then((j) => {
+        if (!j || cancelled) return;
         const fmt = (s: string) =>
           new Date(s).toLocaleTimeString("de-AT", {
             hour: "2-digit",
@@ -237,7 +248,13 @@ function WeatherButton() {
           sunset: fmt(j.daily.sunset[0]),
         });
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const wmo = data ? WMO[data.code] ?? { label: "—", Icon: Cloud } : null;
@@ -247,7 +264,7 @@ function WeatherButton() {
     <div className="group relative">
       <button
         type="button"
-        aria-label="Wetter in Wels"
+        aria-label={`Wetter in ${locationName}`}
         className="flex h-10 items-center gap-2 rounded-full bg-white/70 px-3.5 text-sm font-medium text-foreground/80 ring-1 ring-border transition hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
       >
         <Icon className="h-4 w-4" />
@@ -255,7 +272,7 @@ function WeatherButton() {
           {data ? `${data.temp}°` : error ? "—" : "··"}
         </span>
         <span className="hidden text-[11px] uppercase tracking-widest opacity-70 sm:inline">
-          Wels
+          {locationName}
         </span>
       </button>
       <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-80 -translate-x-1/2 origin-top scale-95 rounded-2xl p-4 opacity-0 transition-all duration-200 glass group-hover:scale-100 group-hover:opacity-100 sm:left-auto sm:right-0 sm:translate-x-0 sm:origin-top-right">
@@ -312,7 +329,7 @@ function WeatherButton() {
           </span>
         </div>
         <p className="mt-3 text-[10px] text-muted-foreground">
-          Wels, Oberösterreich · open-meteo.com
+          {locationName} · open-meteo.com
         </p>
       </div>
     </div>
@@ -395,14 +412,29 @@ function Hero() {
   );
 }
 
+function GallerySkeleton() {
+  return (
+    <div className="mt-10">
+      <div className="aspect-[4/3] w-full animate-pulse rounded-3xl bg-muted sm:aspect-[16/9]" />
+      <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="aspect-square animate-pulse rounded-2xl bg-muted" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Gallery() {
   const [status, setStatus] = useState<"checking" | "locked" | "unlocked">("checking");
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
+  const [lockedForSeconds, setLockedForSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [rememberedHint, setRememberedHint] = useState(false);
 
-  const loadGallery = useCallback(async () => {
+  const loadGallery = useCallback(async (isInitialCheck = false) => {
     try {
       const res = await fetch("/api/gallery");
       if (res.status === 401) {
@@ -412,14 +444,28 @@ function Gallery() {
       const data = await res.json();
       setItems(data.items ?? []);
       setStatus("unlocked");
+      // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
+      if (isInitialCheck) {
+        setRememberedHint(true);
+        window.setTimeout(() => setRememberedHint(false), 4000);
+      }
     } catch {
       setStatus("locked");
     }
   }, []);
 
   useEffect(() => {
-    loadGallery();
+    loadGallery(true);
   }, [loadGallery]);
+
+  // Countdown für die Sperre nach zu vielen Fehlversuchen
+  useEffect(() => {
+    if (lockedForSeconds <= 0) return;
+    const id = window.setInterval(() => {
+      setLockedForSeconds((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [lockedForSeconds]);
 
   const submitPin = useCallback(
     async (e: React.FormEvent) => {
@@ -432,13 +478,19 @@ function Gallery() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ pin }),
         });
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          setLockedForSeconds(data.lockedForSeconds ?? 60);
+          setSubmitting(false);
+          return;
+        }
         if (!res.ok) {
           setPinError(true);
           setSubmitting(false);
           return;
         }
         setPin("");
-        await loadGallery();
+        await loadGallery(false);
       } catch {
         setPinError(true);
       } finally {
@@ -452,11 +504,7 @@ function Gallery() {
     <section id="gallery" className="pt-10">
       <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
 
-      {status === "checking" && (
-        <div className="mt-10 flex aspect-[16/9] w-full items-center justify-center rounded-3xl bg-white ring-1 ring-border">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {status === "checking" && <GallerySkeleton />}
 
       {status === "locked" && (
         <form
@@ -476,25 +524,37 @@ function Gallery() {
             type="password"
             inputMode="numeric"
             autoFocus
+            disabled={lockedForSeconds > 0}
             value={pin}
             onChange={(e) => {
               setPin(e.target.value);
               setPinError(false);
             }}
             placeholder="PIN"
-            className="w-40 rounded-full border border-input bg-background px-4 py-2 text-center text-lg tracking-[0.3em] outline-none ring-primary/40 focus:ring-2"
+            className="w-40 rounded-full border border-input bg-background px-4 py-2 text-center text-lg tracking-[0.3em] outline-none ring-primary/40 focus:ring-2 disabled:opacity-50"
           />
-          {pinError && (
+          {pinError && lockedForSeconds === 0 && (
             <p className="text-sm text-destructive">Falsche PIN, bitte nochmal versuchen.</p>
+          )}
+          {lockedForSeconds > 0 && (
+            <p className="text-sm text-destructive">
+              Zu viele Versuche. Bitte warte {lockedForSeconds}s.
+            </p>
           )}
           <button
             type="submit"
-            disabled={submitting || pin.length === 0}
+            disabled={submitting || pin.length === 0 || lockedForSeconds > 0}
             className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
           >
             {submitting ? "Prüfe…" : "Entsperren"}
           </button>
         </form>
+      )}
+
+      {status === "unlocked" && rememberedHint && (
+        <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground transition-opacity animate-fade-in">
+          <Lock className="h-3 w-3" /> Auf diesem Gerät gemerkt
+        </p>
       )}
 
       {status === "unlocked" && items.length === 0 && (
