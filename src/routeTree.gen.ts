@@ -10,33 +10,68 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiGalleryRouteImport } from './routes/api/gallery'
+import { Route as ApiGalleryAuthRouteImport } from './routes/api/gallery-auth'
+import { Route as ApiGalleryFilenameRouteImport } from './routes/api/gallery/$filename'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGalleryRoute = ApiGalleryRouteImport.update({
+  id: '/api/gallery',
+  path: '/api/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGalleryAuthRoute = ApiGalleryAuthRouteImport.update({
+  id: '/api/gallery-auth',
+  path: '/api/gallery-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGalleryFilenameRoute = ApiGalleryFilenameRouteImport.update({
+  id: '/$filename',
+  path: '/$filename',
+  getParentRoute: () => ApiGalleryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/gallery': typeof ApiGalleryRouteWithChildren
+  '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/gallery': typeof ApiGalleryRouteWithChildren
+  '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/gallery': typeof ApiGalleryRouteWithChildren
+  '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/api/gallery' | '/api/gallery-auth' | '/api/gallery/$filename'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/gallery' | '/api/gallery-auth' | '/api/gallery/$filename'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/gallery'
+    | '/api/gallery-auth'
+    | '/api/gallery/$filename'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiGalleryRoute: typeof ApiGalleryRouteWithChildren
+  ApiGalleryAuthRoute: typeof ApiGalleryAuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +83,57 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/gallery': {
+      id: '/api/gallery'
+      path: '/api/gallery'
+      fullPath: '/api/gallery'
+      preLoaderRoute: typeof ApiGalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gallery-auth': {
+      id: '/api/gallery-auth'
+      path: '/api/gallery-auth'
+      fullPath: '/api/gallery-auth'
+      preLoaderRoute: typeof ApiGalleryAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gallery/$filename': {
+      id: '/api/gallery/$filename'
+      path: '/$filename'
+      fullPath: '/api/gallery/$filename'
+      preLoaderRoute: typeof ApiGalleryFilenameRouteImport
+      parentRoute: typeof ApiGalleryRoute
+    }
   }
 }
 
+interface ApiGalleryRouteChildren {
+  ApiGalleryFilenameRoute: typeof ApiGalleryFilenameRoute
+}
+
+const ApiGalleryRouteChildren: ApiGalleryRouteChildren = {
+  ApiGalleryFilenameRoute: ApiGalleryFilenameRoute,
+}
+
+const ApiGalleryRouteWithChildren = ApiGalleryRoute._addFileChildren(
+  ApiGalleryRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiGalleryRoute: ApiGalleryRouteWithChildren,
+  ApiGalleryAuthRoute: ApiGalleryAuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
