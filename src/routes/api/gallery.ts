@@ -6,6 +6,7 @@ import {
   IMAGE_EXTENSIONS,
   hasGalleryAccess,
   titleFromFilename,
+  readCaptionsFile,
 } from "@/lib/gallery-fs";
 
 export const Route = createFileRoute("/api/gallery")({
@@ -32,9 +33,18 @@ export const Route = createFileRoute("/api/gallery")({
           files = [];
         }
 
+        const { order, captions } = await readCaptionsFile();
+
+        if (order && order.length > 0) {
+          const known = new Set(files);
+          const ordered = order.filter((f) => known.has(f));
+          const rest = files.filter((f) => !order.includes(f));
+          files = [...ordered, ...rest];
+        }
+
         const items = files.map((name) => ({
           src: `/api/gallery/${encodeURIComponent(name)}`,
-          title: titleFromFilename(name),
+          title: captions?.[name] ?? titleFromFilename(name),
         }));
 
         return new Response(JSON.stringify({ items }), {
