@@ -10,12 +10,22 @@ services:
       - GALLERY_DIR=/data/gallery
       # PIN, mit der die Galerie entsperrt wird (bitte anpassen!)
       - GALLERY_PIN=1234
+      # Standort für das Wetter-Widget (Standard: Wels, Oberösterreich)
+      - WEATHER_LAT=48.1667
+      - WEATHER_LON=14.0333
+      - WEATHER_LOCATION_NAME=Wels
     volumes:
       # Bilder hier reinlegen -> erscheinen automatisch in der Galerie
       - ./gallery-images:/data/gallery
     networks:
       - proxy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   proxy:
