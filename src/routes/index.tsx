@@ -52,6 +52,8 @@ export const Route = createFileRoute("/")({
         content:
           "Familien- und Hochzeitsgalerie mit Live-Wetter aus Wels und Links zu unseren Diensten.",
       },
+      // Verhindert, dass Google Bilder die Fotos indiziert
+      { name: "robots", content: "noimageindex, nosnippet" },
     ],
   }),
   component: Home,
@@ -98,6 +100,15 @@ const gallery = [
   { src: g4, title: "Festtafel bei Nacht" },
 ];
 
+// Verhindert Rechtsklick / Drag auf Bilder
+function protectedImgProps() {
+  return {
+    draggable: false as const,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    referrerPolicy: "no-referrer" as const,
+  };
+}
+
 function Home() {
   return (
     <div className="relative min-h-screen">
@@ -122,6 +133,7 @@ function Nav() {
             width={40}
             height={40}
             className="h-10 w-10 shrink-0 drop-shadow-sm"
+            {...protectedImgProps()}
           />
           <span className="hidden text-lg leading-none tracking-tight sm:inline">
             Xsellishimbeerkuchen
@@ -372,6 +384,7 @@ function Hero() {
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[2000ms] ease-in-out ${
               i === active ? "opacity-60 animate-ken-burns" : "opacity-0"
             }`}
+            {...protectedImgProps()}
           />
         ))}
         <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
@@ -476,6 +489,7 @@ function Gallery() {
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1500ms] ease-in-out ${
               i === preview ? "opacity-100" : "opacity-0"
             }`}
+            {...protectedImgProps()}
           />
         ))}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
@@ -522,6 +536,7 @@ function Gallery() {
               width={400}
               height={400}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+              {...protectedImgProps()}
             />
           </button>
         ))}
@@ -590,6 +605,7 @@ function Gallery() {
               src={gallery[index].src}
               alt={gallery[index].title}
               className="max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl animate-scale-in"
+              {...protectedImgProps()}
             />
             <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-white/80">
               <span className="font-medium text-white">{gallery[index].title}</span>
