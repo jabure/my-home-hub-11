@@ -93,6 +93,11 @@ type MusicTrack = {
   title: string;
 };
 
+// Angepasste Bildgröße vom Server anfordern (Original bleibt geschützt auf dem Server)
+function sizedSrc(src: string, size: "display" | "thumb") {
+  return `${src}?size=${size}`;
+}
+
 // Verhindert Rechtsklick / Drag / Referrer-Leak auf Bildern
 function protectedImgProps() {
   return {
@@ -753,7 +758,7 @@ function GalleryExperience({
       {current?.type === "image" && (
         <img
           key={`bg-${current.src}`}
-          src={current.src}
+          src={sizedSrc(current.src, "thumb")}
           alt=""
           aria-hidden="true"
           decoding="async"
@@ -926,7 +931,7 @@ function GalleryExperience({
                 ) : null
               ) : (
                 <img
-                  src={item.src}
+                  src={sizedSrc(item.src, "display")}
                   alt={item.title}
                   loading="eager"
                   decoding="async"
@@ -991,21 +996,24 @@ function GalleryExperience({
             }`}
           >
             {item.type === "video" ? (
-              <span className="relative block h-full w-full">
-                <video
-                  src={`${item.src}#t=0.1`}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
+              <span className="relative block h-full w-full bg-black/40">
+                {/* Vorschau nur laden, wenn das Video nicht gerade läuft (vermeidet doppelten Decoder/Stream) */}
+                {i !== index && (
+                  <video
+                    src={`${item.src}#t=0.1`}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
+                )}
                 <span className="absolute inset-0 grid place-items-center bg-black/30">
                   <Play className="h-4 w-4 text-white" fill="currentColor" />
                 </span>
               </span>
             ) : (
               <img
-                src={item.src}
+                src={sizedSrc(item.src, "thumb")}
                 alt={item.title}
                 loading="lazy"
                 className="h-full w-full object-cover"
