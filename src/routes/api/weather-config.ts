@@ -6,7 +6,10 @@ export const Route = createFileRoute("/api/weather-config")({
     handlers: {
       GET: async () => {
         return new Response(JSON.stringify(getWeatherConfig()), {
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "public, max-age=3600",
+          },
         });
       },
     },
