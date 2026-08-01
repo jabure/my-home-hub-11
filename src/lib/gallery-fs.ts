@@ -25,6 +25,10 @@ const MIME_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
   ".webm": "video/webm",
   ".mov": "video/quicktime",
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".wav": "audio/wav",
 };
 
 export function mimeTypeFor(filename: string): string {
@@ -153,15 +157,20 @@ export function audioMimeTypeFor(filename: string): string {
   return AUDIO_MIME_TYPES[ext] ?? "application/octet-stream";
 }
 
-export async function findMusicFile(): Promise<string | null> {
+export async function findMusicFiles(): Promise<string[]> {
   try {
     const { readdir } = await import("node:fs/promises");
     const entries = await readdir(GALLERY_DIR, { withFileTypes: true });
-    const match = entries.find(
-      (e) => e.isFile() && AUDIO_EXTENSIONS.has(path.extname(e.name).toLowerCase()),
-    );
-    return match ? match.name : null;
+    return entries
+      .filter((e) => e.isFile() && AUDIO_EXTENSIONS.has(path.extname(e.name).toLowerCase()))
+      .map((e) => e.name)
+      .sort((a, b) => a.localeCompare(b, "de"));
   } catch {
-    return null;
+    return [];
   }
+}
+
+export async function findMusicFile(): Promise<string | null> {
+  const files = await findMusicFiles();
+  return files[0] ?? null;
 }
