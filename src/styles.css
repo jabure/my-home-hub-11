@@ -148,3 +148,13 @@
   animation: ken-burns-inout 16s ease-in-out infinite;
   will-change: transform;
 }
+
+/* Systemeinstellung "Bewegung reduzieren" respektieren:
+   Diashow läuft dann mit ruhigen Überblendungen ohne Zoom-Animationen */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ken-burns,
+  .animate-ken-burns-inout,
+  .animate-float {
+    animation: none;
+  }
+}
