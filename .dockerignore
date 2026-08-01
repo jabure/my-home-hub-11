@@ -10,3 +10,6 @@ docker-compose.yml
 .lovable
 .vscode
 *.log
+bun.lock
+gallery-images
+.output
