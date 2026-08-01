@@ -226,3 +226,25 @@ export async function getResizedImage(
     return null;
   }
 }
+
+// Hintergrund-Warmup: erzeugt alle Cache-Größen einmalig vorab, damit die
+// Diashow nie auf das Verkleinern warten muss. Läuft sequenziell und nur
+// einmal gleichzeitig (kein CPU-Burst bei parallelem Zugriff).
+let warmupRunning = false;
+export function warmResizeCache(filenames: string[]): void {
+  if (warmupRunning) return;
+  warmupRunning = true;
+  (async () => {
+    try {
+      for (const name of filenames) {
+        if (mediaTypeFor(name) !== "image") continue;
+        await getResizedImage(name, "thumb");
+        await getResizedImage(name, "display");
+      }
+    } finally {
+      warmupRunning = false;
+    }
+  })().catch(() => {
+    warmupRunning = false;
+  });
+}
