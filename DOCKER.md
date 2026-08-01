@@ -29,8 +29,8 @@ docker run -d -p 3000:3000 \
 
 Die Galerie liest ihre Bilder direkt aus einem Ordner am Server – es ist **kein Rebuild und kein Redeploy nötig**:
 
-1. Lege Bild-Dateien (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.avif`) in den Ordner `./gallery-images` neben der `docker-compose.yml`.
-2. Die Bilder erscheinen automatisch in der Galerie (kurz neu laden reicht).
+1. Lege Bild-Dateien (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.avif`) **oder Videos** (`.mp4`, `.webm`, `.mov`) in den Ordner `./gallery-images` neben der `docker-compose.yml`.
+2. Bilder und Videos erscheinen automatisch in der Galerie (kurz neu laden reicht). Videos werden in der Diashow mit eigenem Ton abgespielt – die Hintergrundmusik pausiert währenddessen automatisch und läuft danach weiter. Nach dem Videoende springt die Diashow zum nächsten Element.
 3. Standard-Reihenfolge: alphabetisch nach Dateiname, z. B. `01-hochzeit.jpg`, `02-familie.jpg`.
 4. Titel werden automatisch aus dem Dateinamen erzeugt: `01-brautpaar-abendlicht.jpg` → **„Brautpaar Abendlicht"**.
 
