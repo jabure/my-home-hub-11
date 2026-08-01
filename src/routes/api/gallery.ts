@@ -4,7 +4,7 @@ import path from "node:path";
 import {
   GALLERY_DIR,
   MEDIA_EXTENSIONS,
-  findMusicFile,
+  findMusicFiles,
   hasGalleryAccess,
   mediaTypeFor,
   titleFromFilename,
@@ -50,10 +50,13 @@ export const Route = createFileRoute("/api/gallery")({
           type: mediaTypeFor(name),
         }));
 
-        const musicFile = await findMusicFile();
-        const music = musicFile ? { title: titleFromFilename(musicFile) } : null;
+        const musicFiles = await findMusicFiles();
+        const musicTracks = musicFiles.map((name) => ({
+          src: `/api/gallery/${encodeURIComponent(name)}`,
+          title: titleFromFilename(name),
+        }));
 
-        return new Response(JSON.stringify({ items, music }), {
+        return new Response(JSON.stringify({ items, musicTracks }), {
           headers: { "content-type": "application/json" },
         });
       },
