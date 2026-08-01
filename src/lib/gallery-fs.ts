@@ -8,6 +8,12 @@ export const GALLERY_DIR = path.resolve(process.env.GALLERY_DIR ?? "/data/galler
 export const GALLERY_COOKIE_NAME = "gallery_access";
 
 export const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
+export const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
+export const MEDIA_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS]);
+
+export function mediaTypeFor(filename: string): "image" | "video" {
+  return VIDEO_EXTENSIONS.has(path.extname(filename).toLowerCase()) ? "video" : "image";
+}
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -16,6 +22,9 @@ const MIME_TYPES: Record<string, string> = {
   ".webp": "image/webp",
   ".gif": "image/gif",
   ".avif": "image/avif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
 };
 
 export function mimeTypeFor(filename: string): string {
