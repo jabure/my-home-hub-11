@@ -3,8 +3,9 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import {
   GALLERY_DIR,
-  IMAGE_EXTENSIONS,
+  MEDIA_EXTENSIONS,
   hasGalleryAccess,
+  mediaTypeFor,
   titleFromFilename,
   readCaptionsFile,
 } from "@/lib/gallery-fs";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/api/gallery")({
           const entries = await readdir(GALLERY_DIR, { withFileTypes: true });
           files = entries
             .filter(
-              (e) => e.isFile() && IMAGE_EXTENSIONS.has(path.extname(e.name).toLowerCase()),
+              (e) => e.isFile() && MEDIA_EXTENSIONS.has(path.extname(e.name).toLowerCase()),
             )
             .map((e) => e.name)
             .sort((a, b) => a.localeCompare(b, "de"));
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/api/gallery")({
         const items = files.map((name) => ({
           src: `/api/gallery/${encodeURIComponent(name)}`,
           title: captions?.[name] ?? titleFromFilename(name),
+          type: mediaTypeFor(name),
         }));
 
         return new Response(JSON.stringify({ items }), {
