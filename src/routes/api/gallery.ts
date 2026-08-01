@@ -5,6 +5,7 @@ import {
   GALLERY_DIR,
   MEDIA_EXTENSIONS,
   findMusicFiles,
+  warmResizeCache,
   hasGalleryAccess,
   mediaTypeFor,
   titleFromFilename,
@@ -50,6 +51,9 @@ export const Route = createFileRoute("/api/gallery")({
           type: mediaTypeFor(name),
         }));
 
+        // Verkleinerte Versionen im Hintergrund vorbereiten (blockiert die Antwort nicht)
+        warmResizeCache(files);
+
         const musicFiles = await findMusicFiles();
         const musicTracks = musicFiles.map((name) => ({
           src: `/api/gallery/${encodeURIComponent(name)}`,
@@ -57,7 +61,7 @@ export const Route = createFileRoute("/api/gallery")({
         }));
 
         return new Response(JSON.stringify({ items, musicTracks }), {
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", "cache-control": "no-store" },
         });
       },
     },
