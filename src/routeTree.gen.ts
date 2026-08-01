@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGalleryRouteImport } from './routes/api/gallery'
 import { Route as ApiGalleryAuthRouteImport } from './routes/api/gallery-auth'
+import { Route as ApiGalleryLogoutRouteImport } from './routes/api/gallery-logout'
+import { Route as ApiGalleryMusicRouteImport } from './routes/api/gallery-music'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiWeatherConfigRouteImport } from './routes/api/weather-config'
 import { Route as ApiGalleryFilenameRouteImport } from './routes/api/gallery/$filename'
@@ -29,6 +31,16 @@ const ApiGalleryRoute = ApiGalleryRouteImport.update({
 const ApiGalleryAuthRoute = ApiGalleryAuthRouteImport.update({
   id: '/api/gallery-auth',
   path: '/api/gallery-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGalleryLogoutRoute = ApiGalleryLogoutRouteImport.update({
+  id: '/api/gallery-logout',
+  path: '/api/gallery-logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGalleryMusicRoute = ApiGalleryMusicRouteImport.update({
+  id: '/api/gallery-music',
+  path: '/api/gallery-music',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -51,6 +63,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery-logout': typeof ApiGalleryLogoutRoute
+  '/api/gallery-music': typeof ApiGalleryMusicRoute
   '/api/health': typeof ApiHealthRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
@@ -59,6 +73,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery-logout': typeof ApiGalleryLogoutRoute
+  '/api/gallery-music': typeof ApiGalleryMusicRoute
   '/api/health': typeof ApiHealthRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
@@ -68,6 +84,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
+  '/api/gallery-logout': typeof ApiGalleryLogoutRoute
+  '/api/gallery-music': typeof ApiGalleryMusicRoute
   '/api/health': typeof ApiHealthRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
@@ -78,6 +96,8 @@ export interface FileRouteTypes {
     | '/'
     | '/api/gallery'
     | '/api/gallery-auth'
+    | '/api/gallery-logout'
+    | '/api/gallery-music'
     | '/api/health'
     | '/api/weather-config'
     | '/api/gallery/$filename'
@@ -86,6 +106,8 @@ export interface FileRouteTypes {
     | '/'
     | '/api/gallery'
     | '/api/gallery-auth'
+    | '/api/gallery-logout'
+    | '/api/gallery-music'
     | '/api/health'
     | '/api/weather-config'
     | '/api/gallery/$filename'
@@ -94,6 +116,8 @@ export interface FileRouteTypes {
     | '/'
     | '/api/gallery'
     | '/api/gallery-auth'
+    | '/api/gallery-logout'
+    | '/api/gallery-music'
     | '/api/health'
     | '/api/weather-config'
     | '/api/gallery/$filename'
@@ -103,6 +127,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiGalleryRoute: typeof ApiGalleryRouteWithChildren
   ApiGalleryAuthRoute: typeof ApiGalleryAuthRoute
+  ApiGalleryLogoutRoute: typeof ApiGalleryLogoutRoute
+  ApiGalleryMusicRoute: typeof ApiGalleryMusicRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiWeatherConfigRoute: typeof ApiWeatherConfigRoute
 }
@@ -128,6 +154,20 @@ declare module '@tanstack/react-router' {
       path: '/api/gallery-auth'
       fullPath: '/api/gallery-auth'
       preLoaderRoute: typeof ApiGalleryAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gallery-logout': {
+      id: '/api/gallery-logout'
+      path: '/api/gallery-logout'
+      fullPath: '/api/gallery-logout'
+      preLoaderRoute: typeof ApiGalleryLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gallery-music': {
+      id: '/api/gallery-music'
+      path: '/api/gallery-music'
+      fullPath: '/api/gallery-music'
+      preLoaderRoute: typeof ApiGalleryMusicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -170,6 +210,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiGalleryRoute: ApiGalleryRouteWithChildren,
   ApiGalleryAuthRoute: ApiGalleryAuthRoute,
+  ApiGalleryLogoutRoute: ApiGalleryLogoutRoute,
+  ApiGalleryMusicRoute: ApiGalleryMusicRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiWeatherConfigRoute: ApiWeatherConfigRoute,
 }
