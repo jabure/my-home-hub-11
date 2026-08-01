@@ -82,6 +82,7 @@ const services: Service[] = [
 type GalleryItem = {
   src: string;
   title: string;
+  type: "image" | "video";
 };
 
 // Verhindert Rechtsklick / Drag / Referrer-Leak auf Bildern
@@ -616,12 +617,39 @@ function GalleryExperience({
     setIndex((i) => (items.length > 0 ? (i - 1 + items.length) % items.length : 0));
   }, [items.length]);
 
-  // Diashow läuft automatisch durch
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const current = items[index];
+  const isVideo = current?.type === "video";
+
+  // Diashow läuft automatisch durch — bei Videos wartet sie stattdessen aufs Videoende
   useEffect(() => {
-    if (!playing || items.length <= 1) return;
+    if (!playing || items.length <= 1 || isVideo) return;
     const id = window.setInterval(next, SLIDE_DURATION_MS);
     return () => window.clearInterval(id);
-  }, [playing, next, items.length]);
+  }, [playing, next, items.length, isVideo]);
+
+  // Musik pausieren, solange ein Video läuft (damit der Video-Ton zu hören ist)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isVideo) {
+      audio.pause();
+    } else if (playing && !musicBlocked) {
+      audio.play().catch(() => {});
+    }
+  }, [isVideo, playing, musicBlocked]);
+
+  // Video beim Anzeigen starten, beim Verlassen stoppen
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isVideo && playing) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    } else if (!playing) {
+      video.pause();
+    }
+  }, [isVideo, playing, index]);
 
   // Tastatursteuerung
   useEffect(() => {
@@ -682,8 +710,6 @@ function GalleryExperience({
     );
   }
 
-  const current = items[index];
-
   return (
     <div className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden">
       {hasMusic && (
@@ -696,19 +722,21 @@ function GalleryExperience({
         />
       )}
 
-      {/* Weich verschwommener Foto-Hintergrund */}
-      {items.map((item, i) => (
-        <img
-          key={`bg-${item.src}`}
-          src={item.src}
-          alt=""
-          aria-hidden="true"
-          className={`absolute inset-0 h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[2000ms] ease-in-out ${
-            i === index ? "opacity-40" : "opacity-0"
-          }`}
-          {...protectedImgProps()}
-        />
-      ))}
+      {/* Weich verschwommener Foto-Hintergrund (nur für Bilder; bei Videos bleibt der warme Grundton) */}
+      {items.map((item, i) =>
+        item.type === "image" ? (
+          <img
+            key={`bg-${item.src}`}
+            src={item.src}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[2000ms] ease-in-out ${
+              i === index ? "opacity-40" : "opacity-0"
+            }`}
+            {...protectedImgProps()}
+          />
+        ) : null,
+      )}
       {/* Warmer Champagner-Schleier + Vignette */}
       <div className="pointer-events-none absolute inset-0 bg-[oklch(0.24_0.02_50)]/60" />
       <div className="pointer-events-none absolute inset-0 wedding-vignette" />
@@ -777,16 +805,32 @@ function GalleryExperience({
           >
             <div
               className={`wedding-frame overflow-hidden rounded-[4px] ${
-                i === index ? "animate-ken-burns-slow" : ""
+                i === index && item.type === "image" ? "animate-ken-burns-slow" : ""
               }`}
             >
-              <img
-                src={item.src}
-                alt={item.title}
-                loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
-                className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
-                {...protectedImgProps()}
-              />
+              {item.type === "video" ? (
+                i === index ? (
+                  <video
+                    ref={videoRef}
+                    src={item.src}
+                    playsInline
+                    controls={false}
+                    onEnded={() => {
+                      if (playing) next();
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
+                  />
+                ) : null
+              ) : (
+                <img
+                  src={item.src}
+                  alt={item.title}
+                  loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
+                  className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
+                  {...protectedImgProps()}
+                />
+              )}
             </div>
           </figure>
         ))}
@@ -842,13 +886,28 @@ function GalleryExperience({
                 : "border-white/15 opacity-45 hover:opacity-80"
             }`}
           >
-            <img
-              src={item.src}
-              alt={item.title}
-              loading="lazy"
-              className="h-full w-full object-cover"
-              {...protectedImgProps()}
-            />
+            {item.type === "video" ? (
+              <span className="relative block h-full w-full">
+                <video
+                  src={`${item.src}#t=0.1`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute inset-0 grid place-items-center bg-black/30">
+                  <Play className="h-4 w-4 text-white" fill="currentColor" />
+                </span>
+              </span>
+            ) : (
+              <img
+                src={item.src}
+                alt={item.title}
+                loading="lazy"
+                className="h-full w-full object-cover"
+                {...protectedImgProps()}
+              />
+            )}
           </button>
         ))}
       </div>
