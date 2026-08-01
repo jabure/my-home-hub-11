@@ -128,3 +128,31 @@ export function getWeatherConfig() {
     name: process.env.WEATHER_LOCATION_NAME ?? "Wels",
   };
 }
+
+// --- Optionale Hintergrundmusik ---
+// Einfach eine Audiodatei (z. B. "hochzeitsmusik.mp3") in den Galerie-Ordner legen.
+const AUDIO_MIME_TYPES: Record<string, string> = {
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".wav": "audio/wav",
+};
+export const AUDIO_EXTENSIONS = new Set(Object.keys(AUDIO_MIME_TYPES));
+
+export function audioMimeTypeFor(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  return AUDIO_MIME_TYPES[ext] ?? "application/octet-stream";
+}
+
+export async function findMusicFile(): Promise<string | null> {
+  try {
+    const { readdir } = await import("node:fs/promises");
+    const entries = await readdir(GALLERY_DIR, { withFileTypes: true });
+    const match = entries.find(
+      (e) => e.isFile() && AUDIO_EXTENSIONS.has(path.extname(e.name).toLowerCase()),
+    );
+    return match ? match.name : null;
+  } catch {
+    return null;
+  }
+}
