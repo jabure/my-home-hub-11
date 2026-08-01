@@ -102,3 +102,8 @@
   100% { transform: scale(1.12) translate(-2%, -1%); }
 }
 @utility animate-ken-burns { animation: ken-burns 8s ease-out forwards; }
+
+@keyframes gallery-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
