@@ -62,7 +62,9 @@ Beide Felder sind optional – du kannst auch nur eines von beiden angeben.
 
 ## Hintergrundmusik (optional)
 
-Lege eine Audiodatei (`.mp3`, `.ogg`, `.m4a` oder `.wav`) in denselben Ordner wie die Bilder, z. B. `./gallery-images/hochzeitsmusik.mp3`. Sobald die Galerie entsperrt ist, läuft sie leise (Lautstärke ~25 %) im Hintergrund in Dauerschleife. Über den Lautsprecher-Button oben rechts lässt sie sich stumm schalten. Falls keine Audiodatei vorhanden ist, wird der Button einfach nicht angezeigt.
+Lege eine oder **mehrere** Audiodateien (`.mp3`, `.ogg`, `.m4a` oder `.wav`) in denselben Ordner wie die Bilder. Sobald die Galerie entsperrt ist, laufen sie leise im Hintergrund – bei mehreren Titeln als Playlist in alphabetischer Reihenfolge (steuerbar über den Dateinamen, z. B. `01-canon-in-d.mp3`, `02-perfect.mp3`), nach dem letzten Titel beginnt sie von vorn.
+
+In der Musik-Leiste oben rechts gibt es: den **aktuellen Titelnamen** (aus dem Dateinamen abgeleitet), einen **Lautstärkeregler**, **Stummschalten**, **Nächster Titel** und eine aufklappbare **Titelübersicht** zum direkten Anwählen. Falls keine Audiodatei vorhanden ist, wird die Leiste einfach nicht angezeigt.
 
 **Wichtig:** Ihr müsst selbst eine Musikdatei bereitstellen, für die ihr die Rechte habt (eigene Aufnahme oder lizenzfreie Musik) – es wird keine Musik automatisch generiert oder mitgeliefert.
 
