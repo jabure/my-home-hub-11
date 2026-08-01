@@ -591,7 +591,7 @@ function GallerySkeleton() {
   );
 }
 
-const SLIDE_DURATION_MS = 6000;
+const SLIDE_DURATION_MS = 7000;
 
 function GalleryExperience({
   items,
@@ -668,15 +668,13 @@ function GalleryExperience({
 
   if (items.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-950 px-4 text-center text-white">
-        <ImageOff className="h-10 w-10 text-white/50" />
-        <p className="text-sm text-white/70">
-          Noch keine Bilder im Galerie-Ordner am Server.
-        </p>
+      <div className="wedding-stage fixed inset-0 z-40 flex flex-col items-center justify-center gap-4 px-4 text-center text-[oklch(0.96_0.01_80)]">
+        <ImageOff className="h-10 w-10 opacity-50" />
+        <p className="text-sm opacity-70">Noch keine Bilder im Galerie-Ordner am Server.</p>
         <button
           type="button"
           onClick={onExit}
-          className="mt-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/20 transition hover:bg-white/20"
+          className="mt-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium ring-1 ring-white/20 transition hover:bg-white/20"
         >
           Zur Startseite
         </button>
@@ -687,7 +685,7 @@ function GalleryExperience({
   const current = items[index];
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-neutral-950 text-white">
+    <div className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden">
       {hasMusic && (
         <audio
           ref={audioRef}
@@ -698,12 +696,29 @@ function GalleryExperience({
         />
       )}
 
+      {/* Weich verschwommener Foto-Hintergrund */}
+      {items.map((item, i) => (
+        <img
+          key={`bg-${item.src}`}
+          src={item.src}
+          alt=""
+          aria-hidden="true"
+          className={`absolute inset-0 h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[2000ms] ease-in-out ${
+            i === index ? "opacity-40" : "opacity-0"
+          }`}
+          {...protectedImgProps()}
+        />
+      ))}
+      {/* Warmer Champagner-Schleier + Vignette */}
+      <div className="pointer-events-none absolute inset-0 bg-[oklch(0.24_0.02_50)]/60" />
+      <div className="pointer-events-none absolute inset-0 wedding-vignette" />
+
       {/* Fortschrittsbalken bis zum nächsten Bild */}
       {playing && items.length > 1 && (
-        <div className="absolute left-0 right-0 top-0 z-10 h-0.5 bg-white/10">
+        <div className="absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10">
           <div
             key={index}
-            className="h-full bg-white/70"
+            className="h-full bg-gradient-to-r from-[oklch(0.85_0.09_85)] to-[oklch(0.78_0.1_50)]"
             style={{ animation: `gallery-progress ${SLIDE_DURATION_MS}ms linear forwards` }}
           />
         </div>
@@ -714,7 +729,7 @@ function GalleryExperience({
         <button
           type="button"
           onClick={onExit}
-          className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-widest text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+          className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
         >
           <X className="h-3.5 w-3.5" /> Verlassen
         </button>
@@ -725,7 +740,7 @@ function GalleryExperience({
               type="button"
               onClick={() => (musicBlocked ? startMusicManually() : setMuted((m) => !m))}
               aria-label={musicBlocked ? "Musik starten" : muted ? "Musik an" : "Musik aus"}
-              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
             >
               {musicBlocked || muted ? (
                 <VolumeX className="h-4 w-4" />
@@ -738,7 +753,7 @@ function GalleryExperience({
             type="button"
             onClick={() => setPlaying((p) => !p)}
             aria-label={playing ? "Pause" : "Diashow starten"}
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
           >
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </button>
@@ -746,24 +761,34 @@ function GalleryExperience({
       </div>
 
       {rememberedHint && (
-        <p className="relative z-10 mt-3 flex items-center justify-center gap-1.5 text-xs text-white/50 animate-fade-in">
+        <p className="relative z-10 mt-3 flex items-center justify-center gap-1.5 text-xs text-[oklch(0.9_0.02_85)]/60 animate-fade-in">
           <Lock className="h-3 w-3" /> Auf diesem Gerät gemerkt
         </p>
       )}
 
       {/* Bühne */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-10">
+      <div className="relative z-10 flex flex-1 items-center justify-center overflow-hidden px-4 py-4 sm:px-12">
         {items.map((item, i) => (
-          <img
+          <figure
             key={item.src}
-            src={item.src}
-            alt={item.title}
-            loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
-            className={`absolute max-h-[70vh] w-auto max-w-[92vw] rounded-2xl object-contain shadow-2xl transition-opacity duration-[1200ms] ease-in-out sm:max-h-[75vh] ${
-              i === index ? "opacity-100 animate-ken-burns" : "opacity-0"
+            className={`absolute transition-opacity duration-[1600ms] ease-in-out ${
+              i === index ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
-            {...protectedImgProps()}
-          />
+          >
+            <div
+              className={`wedding-frame overflow-hidden rounded-[4px] ${
+                i === index ? "animate-ken-burns-slow" : ""
+              }`}
+            >
+              <img
+                src={item.src}
+                alt={item.title}
+                loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
+                className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
+                {...protectedImgProps()}
+              />
+            </div>
+          </figure>
         ))}
 
         {items.length > 1 && (
@@ -772,7 +797,7 @@ function GalleryExperience({
               type="button"
               onClick={prev}
               aria-label="Vorheriges Bild"
-              className="absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20 sm:left-6"
+              className="absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/25 sm:left-6"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -780,7 +805,7 @@ function GalleryExperience({
               type="button"
               onClick={next}
               aria-label="Nächstes Bild"
-              className="absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20 sm:right-6"
+              className="absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/25 sm:right-6"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -788,24 +813,33 @@ function GalleryExperience({
         )}
       </div>
 
-      {/* Titel */}
+      {/* Titel mit Herz-Ornament */}
       <div className="relative z-10 px-4 text-center sm:px-8">
-        <p className="font-display text-lg font-semibold sm:text-xl">{current.title}</p>
-        <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/40">
-          {index + 1} / {items.length}
+        <div className="mx-auto mb-2 flex items-center justify-center gap-3 text-[oklch(0.85_0.09_85)]">
+          <span className="h-px w-10 bg-gradient-to-r from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
+          <Heart className="h-3.5 w-3.5" fill="currentColor" />
+          <span className="h-px w-10 bg-gradient-to-l from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
+        </div>
+        <p className="wedding-caption text-2xl text-[oklch(0.96_0.015_85)] sm:text-3xl">
+          {current.title}
+        </p>
+        <p className="mt-1.5 text-[10px] uppercase tracking-[0.35em] text-[oklch(0.88_0.03_85)]/50">
+          {index + 1} · {items.length}
         </p>
       </div>
 
       {/* Filmstreifen */}
-      <div className="relative z-10 mt-4 flex gap-2 overflow-x-auto px-4 pb-6 sm:px-8">
+      <div className="relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 sm:justify-center sm:px-8">
         {items.map((item, i) => (
           <button
             type="button"
             key={item.src}
             onClick={() => setIndex(i)}
             aria-label={`Bild ${i + 1}: ${item.title}`}
-            className={`h-14 w-14 shrink-0 overflow-hidden rounded-xl ring-2 transition sm:h-16 sm:w-16 ${
-              i === index ? "ring-white" : "ring-transparent opacity-50 hover:opacity-80"
+            className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition sm:h-16 sm:w-16 ${
+              i === index
+                ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)] opacity-100"
+                : "border-white/15 opacity-45 hover:opacity-80"
             }`}
           >
             <img
