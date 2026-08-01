@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
-import { hasGalleryAccess, mimeTypeFor, safeGalleryFilePath } from "@/lib/gallery-fs";
+import {
+  getResizedImage,
+  hasGalleryAccess,
+  isResizeSize,
+  mediaTypeFor,
+  mimeTypeFor,
+  safeGalleryFilePath,
+} from "@/lib/gallery-fs";
 
 export const Route = createFileRoute("/api/gallery/$filename")({
   server: {
@@ -15,6 +22,22 @@ export const Route = createFileRoute("/api/gallery/$filename")({
         const filePath = safeGalleryFilePath(params.filename);
         if (!filePath) {
           return new Response("Invalid path", { status: 400 });
+        }
+
+        // Verkleinerte Anzeige-Version für Bilder (?size=display|thumb)
+        const sizeParam = new URL(request.url).searchParams.get("size");
+        if (isResizeSize(sizeParam) && mediaTypeFor(params.filename) === "image") {
+          const resized = await getResizedImage(params.filename, sizeParam);
+          if (resized) {
+            return new Response(new Uint8Array(resized), {
+              headers: {
+                "content-type": "image/webp",
+                "cache-control": "private, max-age=86400",
+                "x-robots-tag": "noindex, noimageindex",
+              },
+            });
+          }
+          // Fallback: Original ausliefern, wenn Verkleinern nicht möglich war
         }
 
         let fileSize: number;
