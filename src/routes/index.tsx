@@ -27,6 +27,7 @@ import {
   Music,
   SkipForward,
   ListMusic,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -631,6 +632,7 @@ function GalleryExperience({
   const [volume, setVolume] = useState(0.25);
   const [trackIndex, setTrackIndex] = useState(0);
   const [showPlaylist, setShowPlaylist] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
   const [audioFailed, setAudioFailed] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -681,11 +683,14 @@ function GalleryExperience({
       else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
-      } else if (e.key === "Escape") onExit();
+      } else if (e.key === "Escape") {
+        if (showOverview) setShowOverview(false);
+        else onExit();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, onExit]);
+  }, [next, prev, onExit, showOverview]);
 
   // Hintergrundmusik: spielt automatisch, pausiert bei Videos, wechselt Tracks
   useEffect(() => {
@@ -785,7 +790,7 @@ function GalleryExperience({
       )}
 
       {/* Kopfzeile */}
-      <div className="relative z-10 flex items-center justify-between gap-3 px-4 pt-5 sm:px-8">
+      <div className="relative z-30 flex items-center justify-between gap-3 px-4 pt-5 sm:px-8">
         <button
           type="button"
           onClick={onExit}
@@ -883,6 +888,18 @@ function GalleryExperience({
               )}
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => setShowOverview((s) => !s)}
+            aria-label="Bilderübersicht"
+            className={`grid h-9 w-9 place-items-center rounded-full ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20 ${
+              showOverview
+                ? "bg-white/25 text-white"
+                : "bg-white/10 text-[oklch(0.94_0.02_85)]"
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
           <button
             type="button"
             onClick={() => setPlaying((p) => !p)}
@@ -983,6 +1000,94 @@ function GalleryExperience({
           {index + 1} · {items.length}
         </p>
       </div>
+
+      {/* Übersicht: alle Bilder als Raster, Videos als eigener Abschnitt */}
+      {showOverview && (
+        <div className="absolute inset-0 z-20 overflow-y-auto bg-[oklch(0.16_0.015_40)]/95 backdrop-blur-md">
+          <div className="mx-auto max-w-5xl px-4 pb-12 pt-24 sm:px-8">
+            <p className="mb-3 text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
+              Bilder
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
+              {items.map((item, i) =>
+                item.type === "image" ? (
+                  <button
+                    type="button"
+                    key={item.src}
+                    onClick={() => {
+                      setIndex(i);
+                      setShowOverview(false);
+                    }}
+                    aria-label={`Bild anzeigen: ${item.title}`}
+                    className={`group aspect-square overflow-hidden rounded-xl border transition hover:-translate-y-0.5 ${
+                      i === index
+                        ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
+                        : "border-white/10 hover:border-white/30"
+                    }`}
+                  >
+                    <img
+                      src={sizedSrc(item.src, "thumb")}
+                      alt={item.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      {...protectedImgProps()}
+                    />
+                  </button>
+                ) : null,
+              )}
+            </div>
+
+            {items.some((item) => item.type === "video") && (
+              <>
+                <p className="mb-3 mt-10 text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
+                  Videos
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {items.map((item, i) =>
+                    item.type === "video" ? (
+                      <button
+                        type="button"
+                        key={item.src}
+                        onClick={() => {
+                          setIndex(i);
+                          setShowOverview(false);
+                        }}
+                        aria-label={`Video abspielen: ${item.title}`}
+                        className={`group overflow-hidden rounded-xl border text-left transition hover:-translate-y-0.5 ${
+                          i === index
+                            ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
+                            : "border-white/10 hover:border-white/30"
+                        }`}
+                      >
+                        <span className="relative block aspect-video bg-black/40">
+                          {i !== index && (
+                            <video
+                              src={`${item.src}#t=0.1`}
+                              preload="metadata"
+                              muted
+                              playsInline
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                          <span className="absolute inset-0 grid place-items-center bg-black/30 transition group-hover:bg-black/15">
+                            <span className="grid h-10 w-10 place-items-center rounded-full bg-white/90">
+                              <Play className="ml-0.5 h-4 w-4 text-black" fill="currentColor" />
+                            </span>
+                          </span>
+                        </span>
+                        <span className="block truncate px-3 py-2 text-xs text-white/80">
+                          {item.title}
+                        </span>
+                      </button>
+                    ) : null,
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Filmstreifen */}
       <div className="relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 sm:justify-center sm:px-8">
