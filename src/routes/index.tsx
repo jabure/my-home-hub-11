@@ -25,6 +25,8 @@ import {
   Volume2,
   VolumeX,
   Music,
+  SkipForward,
+  ListMusic,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -86,6 +88,11 @@ type GalleryItem = {
   type: "image" | "video";
 };
 
+type MusicTrack = {
+  src: string;
+  title: string;
+};
+
 // Verhindert Rechtsklick / Drag / Referrer-Leak auf Bildern
 function protectedImgProps() {
   return {
@@ -103,7 +110,7 @@ function useGalleryAccess() {
   const [lockedForSeconds, setLockedForSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [rememberedHint, setRememberedHint] = useState(false);
-  const [musicTitle, setMusicTitle] = useState<string | null>(null);
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
 
   const loadGallery = useCallback(async (isInitialCheck = false) => {
     try {
@@ -114,7 +121,7 @@ function useGalleryAccess() {
       }
       const data = await res.json();
       setItems(data.items ?? []);
-      setMusicTitle(data.music?.title ?? null);
+      setMusicTracks(data.musicTracks ?? []);
       setStatus("unlocked");
       // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
       if (isInitialCheck) {
@@ -193,7 +200,7 @@ function useGalleryAccess() {
     submitting,
     submitPin,
     rememberedHint,
-    musicTitle,
+    musicTracks,
     exitGallery,
   };
 }
@@ -207,7 +214,7 @@ function Home() {
       <GalleryExperience
         items={gallery.items}
         rememberedHint={gallery.rememberedHint}
-        musicTitle={gallery.musicTitle}
+        musicTracks={gallery.musicTracks}
         onExit={gallery.exitGallery}
       />
     );
@@ -602,22 +609,31 @@ const SLIDE_DURATION_MS = 7000;
 function GalleryExperience({
   items,
   rememberedHint,
-  musicTitle,
+  musicTracks,
   onExit,
 }: {
   items: GalleryItem[];
   rememberedHint: boolean;
-  musicTitle: string | null;
+  musicTracks: MusicTrack[];
   onExit: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.25);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [showPlaylist, setShowPlaylist] = useState(false);
   const [audioFailed, setAudioFailed] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const hasMusic = musicTitle !== null && !audioFailed;
+  const failedTracksRef = useRef(0);
+  const hasMusic = musicTracks.length > 0 && !audioFailed;
+  const currentTrack = musicTracks[trackIndex] ?? null;
+
+  const nextTrack = useCallback(() => {
+    if (musicTracks.length <= 1) return;
+    setTrackIndex((i) => (i + 1) % musicTracks.length);
+  }, [musicTracks.length]);
 
   const next = useCallback(() => {
     setIndex((i) => (items.length > 0 ? (i + 1) % items.length : 0));
@@ -636,17 +652,6 @@ function GalleryExperience({
     const id = window.setInterval(next, SLIDE_DURATION_MS);
     return () => window.clearInterval(id);
   }, [playing, next, items.length, isVideo]);
-
-  // Musik pausieren, solange ein Video läuft (damit der Video-Ton zu hören ist)
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (isVideo) {
-      audio.pause();
-    } else if (playing && !musicBlocked) {
-      audio.play().catch(() => {});
-    }
-  }, [isVideo, playing, musicBlocked]);
 
   // Video beim Anzeigen starten, beim Verlassen stoppen
   useEffect(() => {
@@ -674,21 +679,25 @@ function GalleryExperience({
     return () => window.removeEventListener("keydown", onKey);
   }, [next, prev, onExit]);
 
-  // Leise Hintergrundmusik (eigene Datei im Galerie-Ordner, z. B. "hochzeitsmusik.mp3")
+  // Hintergrundmusik: spielt automatisch, pausiert bei Videos, wechselt Tracks
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-    const tryPlay = async () => {
-      try {
-        await audio.play();
+    if (!audio || !hasMusic) return;
+    if (isVideo || !playing) {
+      audio.pause();
+      return;
+    }
+    audio
+      .play()
+      .then(() => {
         setMusicBlocked(false);
-      } catch {
+        failedTracksRef.current = 0;
+      })
+      .catch(() => {
         // Browser blockiert Autoplay ohne Nutzer-Geste -> Hinweis zeigen
         setMusicBlocked(true);
-      }
-    };
-    tryPlay();
-  }, [hasMusic]);
+      });
+  }, [hasMusic, isVideo, playing, trackIndex]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -725,10 +734,18 @@ function GalleryExperience({
       {hasMusic && (
         <audio
           ref={audioRef}
-          src="/api/gallery-music"
-          loop
+          src={currentTrack?.src}
+          loop={musicTracks.length === 1}
           preload="auto"
-          onError={() => setAudioFailed(true)}
+          onEnded={() => nextTrack()}
+          onError={() => {
+            failedTracksRef.current += 1;
+            if (failedTracksRef.current >= musicTracks.length) {
+              setAudioFailed(true);
+            } else {
+              nextTrack();
+            }
+          }}
         />
       )}
 
@@ -771,10 +788,13 @@ function GalleryExperience({
 
         <div className="flex items-center gap-2">
           {hasMusic && (
-            <div className="flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-3.5 pr-2 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md">
+            <div className="relative flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-3.5 pr-2 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md">
               <Music className="h-3.5 w-3.5 shrink-0 text-[oklch(0.85_0.09_85)]" />
-              <span className="hidden max-w-36 truncate text-xs sm:inline" title={musicTitle ?? undefined}>
-                {musicTitle}
+              <span
+                className="hidden max-w-36 truncate text-xs sm:inline"
+                title={currentTrack?.title}
+              >
+                {currentTrack?.title}
               </span>
               <input
                 type="range"
@@ -800,6 +820,59 @@ function GalleryExperience({
                   <Volume2 className="h-4 w-4" />
                 )}
               </button>
+              {musicTracks.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={nextTrack}
+                    aria-label="Nächster Titel"
+                    className="grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPlaylist((s) => !s)}
+                    aria-label="Titelübersicht"
+                    className={`grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20 ${
+                      showPlaylist ? "bg-white/20" : ""
+                    }`}
+                  >
+                    <ListMusic className="h-4 w-4" />
+                  </button>
+                  {showPlaylist && (
+                    <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl bg-[oklch(0.2_0.02_50)]/95 p-2 ring-1 ring-white/15 backdrop-blur-md">
+                      <p className="px-3 pb-1.5 pt-1 text-[10px] uppercase tracking-[0.25em] text-white/40">
+                        Titelübersicht
+                      </p>
+                      {musicTracks.map((track, i) => (
+                        <button
+                          type="button"
+                          key={track.src}
+                          onClick={() => {
+                            setTrackIndex(i);
+                            setShowPlaylist(false);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs transition hover:bg-white/10 ${
+                            i === trackIndex
+                              ? "text-[oklch(0.85_0.09_85)]"
+                              : "text-white/75"
+                          }`}
+                        >
+                          {i === trackIndex ? (
+                            <Music className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <span className="w-3.5 shrink-0 text-center text-[10px] tabular-nums text-white/40">
+                              {i + 1}
+                            </span>
+                          )}
+                          <span className="truncate">{track.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
           <button
