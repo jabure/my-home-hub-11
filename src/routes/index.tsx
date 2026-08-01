@@ -732,20 +732,17 @@ function GalleryExperience({
         />
       )}
 
-      {/* Weich verschwommener Foto-Hintergrund (nur für Bilder; bei Videos bleibt der warme Grundton) */}
-      {items.map((item, i) =>
-        item.type === "image" ? (
-          <img
-            key={`bg-${item.src}`}
-            src={item.src}
-            alt=""
-            aria-hidden="true"
-            className={`absolute inset-0 h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[2000ms] ease-in-out ${
-              i === index ? "opacity-40" : "opacity-0"
-            }`}
-            {...protectedImgProps()}
-          />
-        ) : null,
+      {/* Weich verschwommener Foto-Hintergrund (nur das aktive Bild, für flüssiges Rendering) */}
+      {current?.type === "image" && (
+        <img
+          key={`bg-${current.src}`}
+          src={current.src}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          className="absolute inset-0 h-full w-full scale-105 object-cover opacity-40 blur-xl animate-fade-in"
+          {...protectedImgProps()}
+        />
       )}
       {/* Warmer Champagner-Schleier + Vignette */}
       <div className="pointer-events-none absolute inset-0 bg-[oklch(0.24_0.02_50)]/60" />
@@ -824,7 +821,14 @@ function GalleryExperience({
 
       {/* Bühne */}
       <div className="relative z-10 flex flex-1 items-center justify-center overflow-hidden px-4 py-4 sm:px-12">
-        {items.map((item, i) => (
+        {items.map((item, i) => {
+          // Nur Nachbarbilder im DOM halten - bei vielen Fotos sonst massiver Rendering-Aufwand
+          const distance = Math.min(
+            Math.abs(i - index),
+            items.length - Math.abs(i - index),
+          );
+          if (distance > 1) return null;
+          return (
           <figure
             key={item.src}
             className={`absolute transition-opacity duration-[1600ms] ease-in-out ${
@@ -838,6 +842,7 @@ function GalleryExperience({
                     ref={videoRef}
                     src={item.src}
                     playsInline
+                    preload="auto"
                     controls={false}
                     onEnded={() => {
                       if (playing) next();
@@ -850,14 +855,16 @@ function GalleryExperience({
                 <img
                   src={item.src}
                   alt={item.title}
-                  loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
+                  loading="eager"
+                  decoding="async"
                   className="max-h-[62vh] w-auto max-w-[90vw] object-contain animate-ken-burns-inout sm:max-h-[66vh]"
                   {...protectedImgProps()}
                 />
               )}
             </div>
           </figure>
-        ))}
+          );
+        })}
 
         {items.length > 1 && (
           <>
