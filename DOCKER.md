@@ -60,6 +60,12 @@ Beide Felder sind optional – du kannst auch nur eines von beiden angeben.
 - Ohne gültigen Zugriff liefert der Server auch bei direktem Bildaufruf `401 Unauthorized`.
 - Nach **5 falschen Versuchen** wird die Eingabe für **60 Sekunden** gesperrt (pro IP-Adresse), um Durchprobieren zu erschweren.
 
+## Hintergrundmusik (optional)
+
+Lege eine Audiodatei (`.mp3`, `.ogg`, `.m4a` oder `.wav`) in denselben Ordner wie die Bilder, z. B. `./gallery-images/hochzeitsmusik.mp3`. Sobald die Galerie entsperrt ist, läuft sie leise (Lautstärke ~25 %) im Hintergrund in Dauerschleife. Über den Lautsprecher-Button oben rechts lässt sie sich stumm schalten. Falls keine Audiodatei vorhanden ist, wird der Button einfach nicht angezeigt.
+
+**Wichtig:** Ihr müsst selbst eine Musikdatei bereitstellen, für die ihr die Rechte habt (eigene Aufnahme oder lizenzfreie Musik) – es wird keine Musik automatisch generiert oder mitgeliefert.
+
 ## Wetter-Standort anpassen
 
 Standardmäßig zeigt das Wetter-Widget Wels, Oberösterreich. Zum Ändern in `docker-compose.yml`:
@@ -104,4 +110,5 @@ ports:
 | `Dockerfile` | Multi-Stage Build (Bun Builder → Node Runner) inkl. Healthcheck |
 | `docker-compose.yml` | Docker Compose Konfiguration inkl. Galerie-Ordner, PIN, Wetter-Standort, Healthcheck |
 | `.dockerignore` | Ausschluss unnötiger Dateien vom Build |
-| `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden (optional mit `captions.json`) |
+| `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden (optional mit `captions.json` und einer Musikdatei) |
+
