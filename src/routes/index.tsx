@@ -24,6 +24,7 @@ import {
   ImageOff,
   Volume2,
   VolumeX,
+  Music,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -102,6 +103,7 @@ function useGalleryAccess() {
   const [lockedForSeconds, setLockedForSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [rememberedHint, setRememberedHint] = useState(false);
+  const [musicTitle, setMusicTitle] = useState<string | null>(null);
 
   const loadGallery = useCallback(async (isInitialCheck = false) => {
     try {
@@ -112,6 +114,7 @@ function useGalleryAccess() {
       }
       const data = await res.json();
       setItems(data.items ?? []);
+      setMusicTitle(data.music?.title ?? null);
       setStatus("unlocked");
       // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
       if (isInitialCheck) {
@@ -190,6 +193,7 @@ function useGalleryAccess() {
     submitting,
     submitPin,
     rememberedHint,
+    musicTitle,
     exitGallery,
   };
 }
@@ -203,6 +207,7 @@ function Home() {
       <GalleryExperience
         items={gallery.items}
         rememberedHint={gallery.rememberedHint}
+        musicTitle={gallery.musicTitle}
         onExit={gallery.exitGallery}
       />
     );
@@ -597,18 +602,22 @@ const SLIDE_DURATION_MS = 7000;
 function GalleryExperience({
   items,
   rememberedHint,
+  musicTitle,
   onExit,
 }: {
   items: GalleryItem[];
   rememberedHint: boolean;
+  musicTitle: string | null;
   onExit: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(false);
-  const [hasMusic, setHasMusic] = useState(true);
+  const [volume, setVolume] = useState(0.25);
+  const [audioFailed, setAudioFailed] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const hasMusic = musicTitle !== null && !audioFailed;
 
   const next = useCallback(() => {
     setIndex((i) => (items.length > 0 ? (i + 1) % items.length : 0));
@@ -669,7 +678,6 @@ function GalleryExperience({
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = 0.25;
     const tryPlay = async () => {
       try {
         await audio.play();
@@ -684,8 +692,10 @@ function GalleryExperience({
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio) audio.muted = muted;
-  }, [muted]);
+    if (!audio) return;
+    audio.muted = muted;
+    audio.volume = volume;
+  }, [muted, volume]);
 
   const startMusicManually = useCallback(() => {
     audioRef.current
@@ -718,7 +728,7 @@ function GalleryExperience({
           src="/api/gallery-music"
           loop
           preload="auto"
-          onError={() => setHasMusic(false)}
+          onError={() => setAudioFailed(true)}
         />
       )}
 
@@ -764,18 +774,36 @@ function GalleryExperience({
 
         <div className="flex items-center gap-2">
           {hasMusic && (
-            <button
-              type="button"
-              onClick={() => (musicBlocked ? startMusicManually() : setMuted((m) => !m))}
-              aria-label={musicBlocked ? "Musik starten" : muted ? "Musik an" : "Musik aus"}
-              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
-            >
-              {musicBlocked || muted ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </button>
+            <div className="flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-3.5 pr-2 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md">
+              <Music className="h-3.5 w-3.5 shrink-0 text-[oklch(0.85_0.09_85)]" />
+              <span className="hidden max-w-36 truncate text-xs sm:inline" title={musicTitle ?? undefined}>
+                {musicTitle}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(volume * 100)}
+                onChange={(e) => {
+                  setVolume(Number(e.target.value) / 100);
+                  setMuted(false);
+                }}
+                aria-label="Musik-Lautstärke"
+                className="hidden w-20 accent-[oklch(0.85_0.09_85)] sm:block"
+              />
+              <button
+                type="button"
+                onClick={() => (musicBlocked ? startMusicManually() : setMuted((m) => !m))}
+                aria-label={musicBlocked ? "Musik starten" : muted ? "Musik an" : "Musik aus"}
+                className="grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20"
+              >
+                {musicBlocked || muted || volume === 0 ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           )}
           <button
             type="button"
@@ -803,11 +831,7 @@ function GalleryExperience({
               i === index ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
-            <div
-              className={`wedding-frame overflow-hidden rounded-[4px] ${
-                i === index && item.type === "image" ? "animate-ken-burns-slow" : ""
-              }`}
-            >
+            <div className="wedding-frame overflow-hidden rounded-[4px]">
               {item.type === "video" ? (
                 i === index ? (
                   <video
@@ -827,7 +851,7 @@ function GalleryExperience({
                   src={item.src}
                   alt={item.title}
                   loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
-                  className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
+                  className="max-h-[62vh] w-auto max-w-[90vw] object-contain animate-ken-burns-inout sm:max-h-[66vh]"
                   {...protectedImgProps()}
                 />
               )}
@@ -865,7 +889,7 @@ function GalleryExperience({
           <span className="h-px w-10 bg-gradient-to-l from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
         </div>
         <p className="wedding-caption text-2xl text-[oklch(0.96_0.015_85)] sm:text-3xl">
-          {current.title}
+          Hochzeit Tanja &amp; Christopher
         </p>
         <p className="mt-1.5 text-[10px] uppercase tracking-[0.35em] text-[oklch(0.88_0.03_85)]/50">
           {index + 1} · {items.length}
