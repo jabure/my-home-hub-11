@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Heart,
   ExternalLink,
@@ -22,6 +22,8 @@ import {
   Pause,
   Lock,
   ImageOff,
+  Volume2,
+  VolumeX,
   type LucideIcon,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -91,13 +93,177 @@ function protectedImgProps() {
   };
 }
 
+function useGalleryAccess() {
+  const [status, setStatus] = useState<"checking" | "locked" | "unlocked">("checking");
+  const [items, setItems] = useState<GalleryItem[]>([]);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [lockedForSeconds, setLockedForSeconds] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [rememberedHint, setRememberedHint] = useState(false);
+
+  const loadGallery = useCallback(async (isInitialCheck = false) => {
+    try {
+      const res = await fetch("/api/gallery");
+      if (res.status === 401) {
+        setStatus("locked");
+        return;
+      }
+      const data = await res.json();
+      setItems(data.items ?? []);
+      setStatus("unlocked");
+      // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
+      if (isInitialCheck) {
+        setRememberedHint(true);
+        window.setTimeout(() => setRememberedHint(false), 4000);
+      }
+    } catch {
+      setStatus("locked");
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGallery(true);
+  }, [loadGallery]);
+
+  // Countdown für die Sperre nach zu vielen Fehlversuchen
+  useEffect(() => {
+    if (lockedForSeconds <= 0) return;
+    const id = window.setInterval(() => {
+      setLockedForSeconds((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [lockedForSeconds]);
+
+  const submitPin = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setSubmitting(true);
+      setPinError(false);
+      try {
+        const res = await fetch("/api/gallery-auth", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pin }),
+        });
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          setLockedForSeconds(data.lockedForSeconds ?? 60);
+          setSubmitting(false);
+          return;
+        }
+        if (!res.ok) {
+          setPinError(true);
+          setSubmitting(false);
+          return;
+        }
+        setPin("");
+        await loadGallery(false);
+      } catch {
+        setPinError(true);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [pin, loadGallery],
+  );
+
+  const exitGallery = useCallback(async () => {
+    try {
+      await fetch("/api/gallery-logout", { method: "POST" });
+    } catch {
+      // Egal, wir setzen den Zustand clientseitig trotzdem zurück
+    }
+    setItems([]);
+    setStatus("locked");
+  }, []);
+
+  return {
+    status,
+    items,
+    pin,
+    setPin,
+    pinError,
+    setPinError,
+    lockedForSeconds,
+    submitting,
+    submitPin,
+    rememberedHint,
+    exitGallery,
+  };
+}
+
 function Home() {
+  const gallery = useGalleryAccess();
+
+  // Sobald entsperrt: die ganze Seite dreht sich nur noch um die Galerie.
+  if (gallery.status === "unlocked") {
+    return (
+      <GalleryExperience
+        items={gallery.items}
+        rememberedHint={gallery.rememberedHint}
+        onExit={gallery.exitGallery}
+      />
+    );
+  }
+
   return (
     <div className="relative min-h-screen">
       <Nav />
       <Hero />
       <main className="mx-auto max-w-6xl px-5 pb-32 sm:px-8">
-        <Gallery />
+        <section id="gallery" className="pt-10">
+          <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
+
+          {gallery.status === "checking" && <GallerySkeleton />}
+
+          {gallery.status === "locked" && (
+            <form
+              onSubmit={gallery.submitPin}
+              className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl ring-1 ring-border"
+            >
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary">
+                <Lock className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="font-display text-lg font-semibold">Geschützter Bereich</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Bitte PIN eingeben, um die Familienfotos zu sehen.
+                </p>
+              </div>
+              <input
+                type="password"
+                inputMode="numeric"
+                autoFocus
+                disabled={gallery.lockedForSeconds > 0}
+                value={gallery.pin}
+                onChange={(e) => {
+                  gallery.setPin(e.target.value);
+                  gallery.setPinError(false);
+                }}
+                placeholder="PIN"
+                className="w-40 rounded-full border border-input bg-background px-4 py-2 text-center text-lg tracking-[0.3em] outline-none ring-primary/40 focus:ring-2 disabled:opacity-50"
+              />
+              {gallery.pinError && gallery.lockedForSeconds === 0 && (
+                <p className="text-sm text-destructive">Falsche PIN, bitte nochmal versuchen.</p>
+              )}
+              {gallery.lockedForSeconds > 0 && (
+                <p className="text-sm text-destructive">
+                  Zu viele Versuche. Bitte warte {gallery.lockedForSeconds}s.
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={
+                  gallery.submitting || gallery.pin.length === 0 || gallery.lockedForSeconds > 0
+                }
+                className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
+              >
+                {gallery.submitting ? "Prüfe…" : "Entsperren"}
+              </button>
+            </form>
+          )}
+        </section>
       </main>
     </div>
   );
@@ -425,353 +591,234 @@ function GallerySkeleton() {
   );
 }
 
-function Gallery() {
-  const [status, setStatus] = useState<"checking" | "locked" | "unlocked">("checking");
-  const [items, setItems] = useState<GalleryItem[]>([]);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-  const [lockedForSeconds, setLockedForSeconds] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [rememberedHint, setRememberedHint] = useState(false);
+const SLIDE_DURATION_MS = 6000;
 
-  const loadGallery = useCallback(async (isInitialCheck = false) => {
-    try {
-      const res = await fetch("/api/gallery");
-      if (res.status === 401) {
-        setStatus("locked");
-        return;
-      }
-      const data = await res.json();
-      setItems(data.items ?? []);
-      setStatus("unlocked");
-      // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
-      if (isInitialCheck) {
-        setRememberedHint(true);
-        window.setTimeout(() => setRememberedHint(false), 4000);
-      }
-    } catch {
-      setStatus("locked");
-    }
-  }, []);
+function GalleryExperience({
+  items,
+  rememberedHint,
+  onExit,
+}: {
+  items: GalleryItem[];
+  rememberedHint: boolean;
+  onExit: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const [hasMusic, setHasMusic] = useState(true);
+  const [musicBlocked, setMusicBlocked] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
+  const next = useCallback(() => {
+    setIndex((i) => (items.length > 0 ? (i + 1) % items.length : 0));
+  }, [items.length]);
+  const prev = useCallback(() => {
+    setIndex((i) => (items.length > 0 ? (i - 1 + items.length) % items.length : 0));
+  }, [items.length]);
+
+  // Diashow läuft automatisch durch
   useEffect(() => {
-    loadGallery(true);
-  }, [loadGallery]);
-
-  // Countdown für die Sperre nach zu vielen Fehlversuchen
-  useEffect(() => {
-    if (lockedForSeconds <= 0) return;
-    const id = window.setInterval(() => {
-      setLockedForSeconds((s) => Math.max(0, s - 1));
-    }, 1000);
+    if (!playing || items.length <= 1) return;
+    const id = window.setInterval(next, SLIDE_DURATION_MS);
     return () => window.clearInterval(id);
-  }, [lockedForSeconds]);
+  }, [playing, next, items.length]);
 
-  const submitPin = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setSubmitting(true);
-      setPinError(false);
-      try {
-        const res = await fetch("/api/gallery-auth", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ pin }),
-        });
-        if (res.status === 429) {
-          const data = await res.json().catch(() => ({}));
-          setLockedForSeconds(data.lockedForSeconds ?? 60);
-          setSubmitting(false);
-          return;
-        }
-        if (!res.ok) {
-          setPinError(true);
-          setSubmitting(false);
-          return;
-        }
-        setPin("");
-        await loadGallery(false);
-      } catch {
-        setPinError(true);
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [pin, loadGallery],
-  );
-
-  return (
-    <section id="gallery" className="pt-10">
-      <SectionTitle eyebrow="Album" title="Familie & Hochzeit" />
-
-      {status === "checking" && <GallerySkeleton />}
-
-      {status === "locked" && (
-        <form
-          onSubmit={submitPin}
-          className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl ring-1 ring-border"
-        >
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary">
-            <Lock className="h-7 w-7" />
-          </div>
-          <div>
-            <p className="font-display text-lg font-semibold">Geschützter Bereich</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Bitte PIN eingeben, um die Familienfotos zu sehen.
-            </p>
-          </div>
-          <input
-            type="password"
-            inputMode="numeric"
-            autoFocus
-            disabled={lockedForSeconds > 0}
-            value={pin}
-            onChange={(e) => {
-              setPin(e.target.value);
-              setPinError(false);
-            }}
-            placeholder="PIN"
-            className="w-40 rounded-full border border-input bg-background px-4 py-2 text-center text-lg tracking-[0.3em] outline-none ring-primary/40 focus:ring-2 disabled:opacity-50"
-          />
-          {pinError && lockedForSeconds === 0 && (
-            <p className="text-sm text-destructive">Falsche PIN, bitte nochmal versuchen.</p>
-          )}
-          {lockedForSeconds > 0 && (
-            <p className="text-sm text-destructive">
-              Zu viele Versuche. Bitte warte {lockedForSeconds}s.
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={submitting || pin.length === 0 || lockedForSeconds > 0}
-            className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
-          >
-            {submitting ? "Prüfe…" : "Entsperren"}
-          </button>
-        </form>
-      )}
-
-      {status === "unlocked" && rememberedHint && (
-        <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground transition-opacity animate-fade-in">
-          <Lock className="h-3 w-3" /> Auf diesem Gerät gemerkt
-        </p>
-      )}
-
-      {status === "unlocked" && items.length === 0 && (
-        <div className="mt-10 flex flex-col items-center gap-3 rounded-3xl bg-white p-16 text-center ring-1 ring-border">
-          <ImageOff className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Noch keine Bilder im Galerie-Ordner am Server.
-          </p>
-        </div>
-      )}
-
-      {status === "unlocked" && items.length > 0 && <GalleryViewer items={items} />}
-    </section>
-  );
-}
-
-function GalleryViewer({ items }: { items: GalleryItem[] }) {
-  const [index, setIndex] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [preview, setPreview] = useState(0);
-
-  const close = useCallback(() => {
-    setIndex(null);
-    setPlaying(false);
-  }, []);
-  const next = useCallback(
-    () => setIndex((i) => (i === null ? i : (i + 1) % items.length)),
-    [items.length],
-  );
-  const prev = useCallback(
-    () => setIndex((i) => (i === null ? i : (i - 1 + items.length) % items.length)),
-    [items.length],
-  );
-
+  // Tastatursteuerung
   useEffect(() => {
-    if (index === null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-      else if (e.key === "ArrowRight") next();
+      if (e.key === "ArrowRight") next();
       else if (e.key === "ArrowLeft") prev();
       else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
-      }
+      } else if (e.key === "Escape") onExit();
     };
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+    return () => window.removeEventListener("keydown", onKey);
+  }, [next, prev, onExit]);
+
+  // Leise Hintergrundmusik (eigene Datei im Galerie-Ordner, z. B. "hochzeitsmusik.mp3")
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.25;
+    const tryPlay = async () => {
+      try {
+        await audio.play();
+        setMusicBlocked(false);
+      } catch {
+        // Browser blockiert Autoplay ohne Nutzer-Geste -> Hinweis zeigen
+        setMusicBlocked(true);
+      }
     };
-  }, [index, close, next, prev]);
+    tryPlay();
+  }, [hasMusic]);
 
   useEffect(() => {
-    if (index === null || !playing) return;
-    const id = window.setInterval(next, 3500);
-    return () => window.clearInterval(id);
-  }, [index, playing, next]);
+    const audio = audioRef.current;
+    if (audio) audio.muted = muted;
+  }, [muted]);
 
-  useEffect(() => {
-    if (index !== null) return;
-    const id = window.setInterval(
-      () => setPreview((i) => (i + 1) % items.length),
-      4000,
+  const startMusicManually = useCallback(() => {
+    audioRef.current
+      ?.play()
+      .then(() => setMusicBlocked(false))
+      .catch(() => {});
+  }, []);
+
+  if (items.length === 0) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-950 px-4 text-center text-white">
+        <ImageOff className="h-10 w-10 text-white/50" />
+        <p className="text-sm text-white/70">
+          Noch keine Bilder im Galerie-Ordner am Server.
+        </p>
+        <button
+          type="button"
+          onClick={onExit}
+          className="mt-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/20 transition hover:bg-white/20"
+        >
+          Zur Startseite
+        </button>
+      </div>
     );
-    return () => window.clearInterval(id);
-  }, [index, items.length]);
+  }
+
+  const current = items[index];
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          setIndex(preview);
-          setPlaying(true);
-        }}
-        aria-label="Galerie öffnen"
-        className="group relative mt-10 block aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-border transition hover:shadow-2xl sm:aspect-[16/9]"
-      >
-        {items.map((g, i) => (
+    <div className="fixed inset-0 z-40 flex flex-col bg-neutral-950 text-white">
+      {hasMusic && (
+        <audio
+          ref={audioRef}
+          src="/api/gallery-music"
+          loop
+          preload="auto"
+          onError={() => setHasMusic(false)}
+        />
+      )}
+
+      {/* Fortschrittsbalken bis zum nächsten Bild */}
+      {playing && items.length > 1 && (
+        <div className="absolute left-0 right-0 top-0 z-10 h-0.5 bg-white/10">
+          <div
+            key={index}
+            className="h-full bg-white/70"
+            style={{ animation: `gallery-progress ${SLIDE_DURATION_MS}ms linear forwards` }}
+          />
+        </div>
+      )}
+
+      {/* Kopfzeile */}
+      <div className="relative z-10 flex items-center justify-between gap-3 px-4 pt-5 sm:px-8">
+        <button
+          type="button"
+          onClick={onExit}
+          className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-widest text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+        >
+          <X className="h-3.5 w-3.5" /> Verlassen
+        </button>
+
+        <div className="flex items-center gap-2">
+          {hasMusic && (
+            <button
+              type="button"
+              onClick={() => (musicBlocked ? startMusicManually() : setMuted((m) => !m))}
+              aria-label={musicBlocked ? "Musik starten" : muted ? "Musik an" : "Musik aus"}
+              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+            >
+              {musicBlocked || muted ? (
+                <VolumeX className="h-4 w-4" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setPlaying((p) => !p)}
+            aria-label={playing ? "Pause" : "Diashow starten"}
+            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20"
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {rememberedHint && (
+        <p className="relative z-10 mt-3 flex items-center justify-center gap-1.5 text-xs text-white/50 animate-fade-in">
+          <Lock className="h-3 w-3" /> Auf diesem Gerät gemerkt
+        </p>
+      )}
+
+      {/* Bühne */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-10">
+        {items.map((item, i) => (
           <img
-            key={g.src}
-            src={g.src}
-            alt={g.title}
-            loading={i === 0 ? "eager" : "lazy"}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1500ms] ease-in-out ${
-              i === preview ? "opacity-100" : "opacity-0"
+            key={item.src}
+            src={item.src}
+            alt={item.title}
+            loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
+            className={`absolute max-h-[70vh] w-auto max-w-[92vw] rounded-2xl object-contain shadow-2xl transition-opacity duration-[1200ms] ease-in-out sm:max-h-[75vh] ${
+              i === index ? "opacity-100 animate-ken-burns" : "opacity-0"
             }`}
             {...protectedImgProps()}
           />
         ))}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-5 sm:p-7">
-          <div className="text-white">
-            <p className="text-[10px] uppercase tracking-[0.25em] opacity-80">
-              {preview + 1} / {items.length}
-            </p>
-            <p className="mt-1 font-display text-lg font-semibold sm:text-2xl">
-              {items[preview].title}
-            </p>
-          </div>
-          <span className="hidden rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-foreground shadow-lg transition group-hover:bg-white sm:inline-block">
-            Galerie öffnen
-          </span>
-        </div>
-        <div className="absolute left-1/2 top-4 flex -translate-x-1/2 gap-1.5">
-          {items.map((g, i) => (
-            <span
-              key={g.src}
-              className={`h-1.5 rounded-full transition-all ${
-                i === preview ? "w-6 bg-white" : "w-1.5 bg-white/50"
-              }`}
-            />
-          ))}
-        </div>
-      </button>
 
-      <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
-        {items.map((g, i) => (
+        {items.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prev}
+              aria-label="Vorheriges Bild"
+              className="absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20 sm:left-6"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              aria-label="Nächstes Bild"
+              className="absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur transition hover:bg-white/20 sm:right-6"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Titel */}
+      <div className="relative z-10 px-4 text-center sm:px-8">
+        <p className="font-display text-lg font-semibold sm:text-xl">{current.title}</p>
+        <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/40">
+          {index + 1} / {items.length}
+        </p>
+      </div>
+
+      {/* Filmstreifen */}
+      <div className="relative z-10 mt-4 flex gap-2 overflow-x-auto px-4 pb-6 sm:px-8">
+        {items.map((item, i) => (
           <button
             type="button"
-            key={g.src}
-            onClick={() => setPreview(i)}
-            onDoubleClick={() => {
-              setIndex(i);
-              setPlaying(true);
-            }}
-            aria-label={`Bild ${i + 1}: ${g.title}`}
-            className={`group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg ${
-              i === preview ? "ring-2 ring-primary" : ""
+            key={item.src}
+            onClick={() => setIndex(i)}
+            aria-label={`Bild ${i + 1}: ${item.title}`}
+            className={`h-14 w-14 shrink-0 overflow-hidden rounded-xl ring-2 transition sm:h-16 sm:w-16 ${
+              i === index ? "ring-white" : "ring-transparent opacity-50 hover:opacity-80"
             }`}
           >
             <img
-              src={g.src}
-              alt={g.title}
+              src={item.src}
+              alt={item.title}
               loading="lazy"
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+              className="h-full w-full object-cover"
               {...protectedImgProps()}
             />
           </button>
         ))}
       </div>
-
-      {index !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/85 p-4 backdrop-blur-xl animate-fade-in"
-          onClick={close}
-          role="dialog"
-          aria-modal="true"
-          aria-label={items[index].title}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              close();
-            }}
-            aria-label="Schließen"
-            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPlaying((p) => !p);
-            }}
-            aria-label={playing ? "Pause" : "Slideshow starten"}
-            className="absolute right-20 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
-          >
-            {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              prev();
-            }}
-            aria-label="Vorheriges Bild"
-            className="absolute left-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              next();
-            }}
-            aria-label="Nächstes Bild"
-            className="absolute right-4 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-foreground transition hover:bg-white"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-
-          <figure
-            className="relative max-h-full max-w-6xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              key={items[index].src}
-              src={items[index].src}
-              alt={items[index].title}
-              className="max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl animate-scale-in"
-              {...protectedImgProps()}
-            />
-            <figcaption className="mt-4 flex items-center justify-between gap-4 text-sm text-white/80">
-              <span className="font-medium text-white">{items[index].title}</span>
-              <span className="tabular-nums">
-                {index + 1} / {items.length}
-              </span>
-            </figcaption>
-          </figure>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 
