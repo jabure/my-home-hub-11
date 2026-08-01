@@ -16,7 +16,9 @@ COPY . .
 RUN bun run build
 
 # ---- Stage 2: Run ----
-FROM node:22-alpine AS runner
+# node:22-slim (glibc) statt alpine (musl), damit die nativen sharp-Binaries
+# aus dem Bun-Builder (Debian/glibc) im Runner funktionieren
+FROM node:22-slim AS runner
 
 WORKDIR /app
 
