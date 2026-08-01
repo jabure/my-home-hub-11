@@ -139,10 +139,12 @@
   letter-spacing: 0.02em;
 }
 
-@keyframes ken-burns-slow {
+@keyframes ken-burns-inout {
   0% { transform: scale(1); }
-  100% { transform: scale(1.045); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
-@utility animate-ken-burns-slow {
-  animation: ken-burns-slow 9s ease-out forwards;
+@utility animate-ken-burns-inout {
+  animation: ken-burns-inout 16s ease-in-out infinite;
+  will-change: transform;
 }
