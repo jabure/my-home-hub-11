@@ -174,3 +174,55 @@ export async function findMusicFile(): Promise<string | null> {
   const files = await findMusicFiles();
   return files[0] ?? null;
 }
+
+// --- Server-seitige Bildverkleinerung mit Disk-Cache ---
+// Kamera-Originale (oft 6000px / mehrere MB) sind zu schwer für flüssige
+// Browser-Animationen. Wir liefern automatisch passende WebP-Größen aus
+// und cachen sie im Galerie-Ordner unter .cache/ (übersteht Container-Neustarts).
+const RESIZE_WIDTHS = { display: 1920, thumb: 320 } as const;
+export type ResizeSize = keyof typeof RESIZE_WIDTHS;
+
+export function isResizeSize(v: string | null): v is ResizeSize {
+  return v === "display" || v === "thumb";
+}
+
+export async function getResizedImage(
+  filename: string,
+  size: ResizeSize,
+): Promise<Buffer | null> {
+  const srcPath = safeGalleryFilePath(filename);
+  if (!srcPath) return null;
+
+  const { mkdir, stat, readFile, writeFile } = await import("node:fs/promises");
+  const cacheDir = path.join(GALLERY_DIR, ".cache");
+  const cachePath = path.join(cacheDir, `${size}-${path.basename(filename)}.webp`);
+
+  try {
+    const [srcStat, cacheStat] = await Promise.all([stat(srcPath), stat(cachePath)]);
+    if (cacheStat.mtimeMs >= srcStat.mtimeMs) {
+      return await readFile(cachePath);
+    }
+  } catch {
+    // Kein Cache vorhanden -> neu erzeugen
+  }
+
+  try {
+    const sharpMod = await import("sharp");
+    const sharp = sharpMod.default;
+    const buf = await sharp(srcPath)
+      .rotate() // EXIF-Orientierung anwenden (wichtig bei Handy-Fotos)
+      .resize({ width: RESIZE_WIDTHS[size], withoutEnlargement: true })
+      .webp({ quality: size === "thumb" ? 70 : 82 })
+      .toBuffer();
+    try {
+      await mkdir(cacheDir, { recursive: true });
+      await writeFile(cachePath, buf);
+    } catch {
+      // Cache-Schreiben fehlgeschlagen (z. B. read-only Volume) -> trotzdem ausliefern
+    }
+    return buf;
+  } catch {
+    // sharp nicht verfügbar oder Datei nicht dekodierbar -> Aufrufer nutzt Original
+    return null;
+  }
+}
