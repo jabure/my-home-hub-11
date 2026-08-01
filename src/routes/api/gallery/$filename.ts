@@ -47,7 +47,8 @@ export const Route = createFileRoute("/api/gallery/$filename")({
               });
             }
             const stream = Readable.toWeb(
-              createReadStream(filePath, { start, end }),
+              // Große Chunks (1 MB) für gleichmäßiges Video-Streaming ohne Aussetzer
+              createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 }),
             ) as ReadableStream;
             return new Response(stream, {
               status: 206,
@@ -60,7 +61,9 @@ export const Route = createFileRoute("/api/gallery/$filename")({
           }
         }
 
-        const stream = Readable.toWeb(createReadStream(filePath)) as ReadableStream;
+        const stream = Readable.toWeb(
+          createReadStream(filePath, { highWaterMark: 1024 * 1024 }),
+        ) as ReadableStream;
         return new Response(stream, {
           headers: { ...baseHeaders, "content-length": String(fileSize) },
         });
