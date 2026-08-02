@@ -195,42 +195,38 @@ export function GalleryExperience({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   // Gästefotos laufen nicht automatisch in der Diashow mit - eigenes Album, eigener Abschnitt
-  const slideshowItems = items.filter((item) => item.album !== "gaeste");
+  const mainItems = items.filter((item) => item.album !== "gaeste");
+  // Videos laufen NICHT automatisch in der Diashow - nur Bilder rotieren automatisch;
+  // ein Video wird ausschließlich per Klick geöffnet (siehe viewingVideo unten).
+  const slideshowItems = mainItems.filter((item) => item.type === "image");
   const current = slideshowItems[index];
-  const isVideo = current?.type === "video";
   const hasSlideshow = slideshowItems.length > 0;
 
-  // Diashow läuft automatisch durch — bei Videos wartet sie stattdessen aufs Videoende
+  const [viewingVideo, setViewingVideo] = useState<GalleryItem | null>(null);
+  const videoOpen = viewingVideo !== null;
+
+  // Diashow läuft automatisch durch - pausiert, solange ein Video per Klick geöffnet ist
   useEffect(() => {
-    if (!playing || slideshowItems.length <= 1 || isVideo) return;
+    if (!playing || slideshowItems.length <= 1 || videoOpen) return;
     const id = window.setInterval(next, SLIDE_DURATION_MS);
     return () => window.clearInterval(id);
-  }, [playing, next, slideshowItems.length, isVideo]);
+  }, [playing, next, slideshowItems.length, videoOpen]);
 
-  // Neues Video-Dia: von vorn starten (falls die Diashow gerade läuft)
+  // Angeklicktes Video: von vorn starten und abspielen
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !isVideo) return;
+    if (!video || !viewingVideo) return;
     video.currentTime = 0;
-    if (playing) video.play().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
-
-  // Play/Pause umschalten (per Kopfzeilen-Button oder Video-eigenen Steuerelementen) -
-  // OHNE die Abspielposition zurückzusetzen, damit Pausieren/Spulen erhalten bleibt
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !isVideo) return;
-    if (playing) {
-      if (video.paused) video.play().catch(() => {});
-    } else if (!video.paused) {
-      video.pause();
-    }
-  }, [isVideo, playing]);
+    video.play().catch(() => {});
+  }, [viewingVideo]);
 
   // Tastatursteuerung
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (videoOpen) {
+        if (e.key === "Escape") setViewingVideo(null);
+        return;
+      }
       if (e.key === "ArrowRight") next();
       else if (e.key === "ArrowLeft") prev();
       else if (e.key === " ") {
@@ -243,7 +239,7 @@ export function GalleryExperience({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, onExit, showOverview]);
+  }, [next, prev, onExit, showOverview, videoOpen]);
 
   // Sanftes Ein-/Ausblenden der Musik (statt hartem Stopp beim Video)
   const fadeTo = useCallback((target: number, onDone?: () => void) => {
@@ -277,7 +273,7 @@ export function GalleryExperience({
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !hasMusic) return;
-    if (isVideo || !playing) {
+    if (videoOpen || !playing) {
       fadeTo(0, () => audio.pause());
       return;
     }
@@ -293,7 +289,7 @@ export function GalleryExperience({
         // Browser blockiert Autoplay ohne Nutzer-Geste -> Hinweis zeigen
         setMusicBlocked(true);
       });
-  }, [hasMusic, isVideo, playing, trackIndex, fadeTo]);
+  }, [hasMusic, videoOpen, playing, trackIndex, fadeTo]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -380,7 +376,7 @@ export function GalleryExperience({
       <div className="pointer-events-none absolute inset-0 wedding-vignette" />
 
       {/* Fortschrittsbalken bis zum nächsten Bild */}
-      {playing && !isVideo && slideshowItems.length > 1 && (
+      {playing && !videoOpen && slideshowItems.length > 1 && (
         <div className="absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10">
           <div
             key={index}
@@ -541,40 +537,20 @@ export function GalleryExperience({
               }`}
             >
               <div className="wedding-frame overflow-hidden rounded-[4px]">
-                {item.type === "video" ? (
-                  i === index ? (
-                    <video
-                      ref={videoRef}
-                      src={item.src}
-                      playsInline
-                      preload="auto"
-                      controls
-                      controlsList="nodownload noremoteplayback"
-                      onEnded={() => {
-                        if (playing) next();
-                      }}
-                      onPlay={() => setPlaying(true)}
-                      onPause={() => setPlaying(false)}
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
-                    />
-                  ) : null
-                ) : (
-                  <img
-                    src={sizedSrc(item.src, "display")}
-                    alt={item.title}
-                    loading="eager"
-                    decoding="async"
-                    className="max-h-[62vh] w-auto max-w-[90vw] object-contain animate-ken-burns-inout sm:max-h-[66vh]"
-                    {...protectedImgProps()}
-                  />
-                )}
+                <img
+                  src={sizedSrc(item.src, "display")}
+                  alt={item.title}
+                  loading="eager"
+                  decoding="async"
+                  className="max-h-[62vh] w-auto max-w-[90vw] object-contain animate-ken-burns-inout sm:max-h-[66vh]"
+                  {...protectedImgProps()}
+                />
               </div>
             </figure>
           );
         })}
 
-        {slideshowItems.length > 1 && (
+        {!videoOpen && slideshowItems.length > 1 && (
           <>
             <button
               type="button"
@@ -595,6 +571,36 @@ export function GalleryExperience({
           </>
         )}
       </div>
+
+      {/* Video-Ansicht: öffnet sich nur nach Klick, läuft nie automatisch in der Diashow mit */}
+      {viewingVideo && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setViewingVideo(null)}
+            aria-label="Video schließen"
+            className="absolute right-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20 sm:right-8 sm:top-8"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="wedding-frame overflow-hidden rounded-[4px]">
+            <video
+              ref={videoRef}
+              src={viewingVideo.src}
+              playsInline
+              preload="auto"
+              controls
+              controlsList="nodownload noremoteplayback"
+              onEnded={() => setViewingVideo(null)}
+              onContextMenu={(e) => e.preventDefault()}
+              className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
+            />
+          </div>
+          <p className="wedding-caption mt-5 text-xl text-[oklch(0.96_0.015_85)]">
+            {viewingVideo.title}
+          </p>
+        </div>
+      )}
 
       {/* Titel mit Herz-Ornament */}
       {hasSlideshow && (
@@ -621,67 +627,60 @@ export function GalleryExperience({
               Bilder
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
-              {items.map((item, i) =>
-                item.type === "image" && item.album !== "gaeste" ? (
-                  <button
-                    type="button"
-                    key={item.src}
-                    onClick={() => {
-                      setIndex(i);
-                      setShowOverview(false);
-                    }}
-                    aria-label={`Bild anzeigen: ${item.title}`}
-                    className={`group aspect-square overflow-hidden rounded-xl border transition hover:-translate-y-0.5 ${
-                      i === index
-                        ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
-                        : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    <img
-                      src={sizedSrc(item.src, "thumb")}
-                      alt={item.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      {...protectedImgProps()}
-                    />
-                  </button>
-                ) : null,
-              )}
+              {slideshowItems.map((item, i) => (
+                <button
+                  type="button"
+                  key={item.src}
+                  onClick={() => {
+                    setIndex(i);
+                    setShowOverview(false);
+                  }}
+                  aria-label={`Bild anzeigen: ${item.title}`}
+                  className={`group aspect-square overflow-hidden rounded-xl border transition hover:-translate-y-0.5 ${
+                    i === index
+                      ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
+                      : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  <img
+                    src={sizedSrc(item.src, "thumb")}
+                    alt={item.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    {...protectedImgProps()}
+                  />
+                </button>
+              ))}
             </div>
 
-            {items.some((item) => item.type === "video" && item.album !== "gaeste") && (
+            {mainItems.some((item) => item.type === "video") && (
               <>
                 <p className="mb-3 mt-10 text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
                   Videos
                 </p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {items.map((item, i) =>
-                    item.type === "video" && item.album !== "gaeste" ? (
+                  {mainItems
+                    .filter((item) => item.type === "video")
+                    .map((item) => (
                       <button
                         type="button"
                         key={item.src}
                         onClick={() => {
-                          setIndex(i);
+                          setViewingVideo(item);
                           setShowOverview(false);
                         }}
                         aria-label={`Video abspielen: ${item.title}`}
-                        className={`group overflow-hidden rounded-xl border text-left transition hover:-translate-y-0.5 ${
-                          i === index
-                            ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
-                            : "border-white/10 hover:border-white/30"
-                        }`}
+                        className="group overflow-hidden rounded-xl border border-white/10 text-left transition hover:-translate-y-0.5 hover:border-white/30"
                       >
                         <span className="relative block aspect-video bg-black/40">
-                          {i !== index && (
-                            <video
-                              src={`${item.src}#t=0.1`}
-                              preload="metadata"
-                              muted
-                              playsInline
-                              className="h-full w-full object-cover"
-                            />
-                          )}
+                          <video
+                            src={`${item.src}#t=0.1`}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            className="h-full w-full object-cover"
+                          />
                           <span className="absolute inset-0 grid place-items-center bg-black/30 transition group-hover:bg-black/15">
                             <span className="grid h-10 w-10 place-items-center rounded-full bg-white/90">
                               <Play className="ml-0.5 h-4 w-4 text-black" fill="currentColor" />
@@ -692,8 +691,7 @@ export function GalleryExperience({
                           {item.title}
                         </span>
                       </button>
-                    ) : null,
-                  )}
+                    ))}
                 </div>
               </>
             )}
@@ -784,32 +782,36 @@ export function GalleryExperience({
       )}
 
       {/* Filmstreifen */}
-      {hasSlideshow && (
+      {mainItems.length > 0 && (
         <div className="relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 sm:justify-center sm:px-8">
-          {slideshowItems.map((item, i) => (
+          {mainItems.map((item) => (
             <button
               type="button"
               key={item.src}
-              onClick={() => setIndex(i)}
-              aria-label={`Bild ${i + 1}: ${item.title}`}
+              onClick={() => {
+                if (item.type === "video") {
+                  setViewingVideo(item);
+                } else {
+                  const imgIndex = slideshowItems.findIndex((s) => s.src === item.src);
+                  if (imgIndex >= 0) setIndex(imgIndex);
+                }
+              }}
+              aria-label={item.type === "video" ? `Video abspielen: ${item.title}` : item.title}
               className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition sm:h-16 sm:w-16 ${
-                i === index
+                item.type === "image" && current?.src === item.src
                   ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)] opacity-100"
                   : "border-white/15 opacity-45 hover:opacity-80"
               }`}
             >
               {item.type === "video" ? (
                 <span className="relative block h-full w-full bg-black/40">
-                  {/* Vorschau nur laden, wenn das Video nicht gerade läuft (vermeidet doppelten Decoder/Stream) */}
-                  {i !== index && (
-                    <video
-                      src={`${item.src}#t=0.1`}
-                      preload="metadata"
-                      muted
-                      playsInline
-                      className="h-full w-full object-cover"
-                    />
-                  )}
+                  <video
+                    src={`${item.src}#t=0.1`}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
                   <span className="absolute inset-0 grid place-items-center bg-black/30">
                     <Play className="h-4 w-4 text-white" fill="currentColor" />
                   </span>
