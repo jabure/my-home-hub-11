@@ -7,6 +7,7 @@ import {
   findMusicFiles,
   warmResizeCache,
   hasGalleryAccess,
+  mediaTimestamp,
   mediaTypeFor,
   titleFromFilename,
   readCaptionsFile,
@@ -30,11 +31,23 @@ export const Route = createFileRoute("/api/gallery")({
             .filter(
               (e) => e.isFile() && MEDIA_EXTENSIONS.has(path.extname(e.name).toLowerCase()),
             )
-            .map((e) => e.name)
-            .sort((a, b) => a.localeCompare(b, "de"));
+            .map((e) => e.name);
         } catch {
           files = [];
         }
+
+        // Chronologisch nach Aufnahmedatum sortieren (EXIF, sonst Datei-Datum);
+        // bei gleichem Datum alphabetisch als stabiler Tiebreaker
+        const timestamps = new Map<string, number>();
+        await Promise.all(
+          files.map(async (name) => {
+            timestamps.set(name, await mediaTimestamp(name));
+          }),
+        );
+        files.sort((a, b) => {
+          const diff = (timestamps.get(a) ?? 0) - (timestamps.get(b) ?? 0);
+          return diff !== 0 ? diff : a.localeCompare(b, "de");
+        });
 
         const { order, captions } = await readCaptionsFile();
 
