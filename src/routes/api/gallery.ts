@@ -5,6 +5,7 @@ import {
   GALLERY_DIR,
   MEDIA_EXTENSIONS,
   findMusicFiles,
+  listGuestFiles,
   warmResizeCache,
   hasGalleryAccess,
   mediaTimestamp,
@@ -58,11 +59,27 @@ export const Route = createFileRoute("/api/gallery")({
           files = [...ordered, ...rest];
         }
 
-        const items = files.map((name) => ({
+        const items: Array<{
+          src: string;
+          title: string;
+          type: "image" | "video";
+          album?: "gaeste";
+        }> = files.map((name) => ({
           src: `/api/gallery/${encodeURIComponent(name)}`,
           title: captions?.[name] ?? titleFromFilename(name),
           type: mediaTypeFor(name),
         }));
+
+        // Gäste-Album anhängen (eigener Abschnitt, chronologisch nach Upload)
+        const guestFiles = await listGuestFiles();
+        for (const name of guestFiles) {
+          items.push({
+            src: `/api/gallery-guest/${encodeURIComponent(name)}`,
+            title: titleFromFilename(name.replace(/^\d+-\d+-/, "")),
+            type: mediaTypeFor(name),
+            album: "gaeste",
+          });
+        }
 
         // Verkleinerte Versionen im Hintergrund vorbereiten (blockiert die Antwort nicht)
         warmResizeCache(files);
