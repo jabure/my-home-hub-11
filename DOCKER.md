@@ -31,7 +31,7 @@ Die Galerie liest ihre Bilder direkt aus einem Ordner am Server – es ist **kei
 
 1. Lege Bild-Dateien (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.avif`) **oder Videos** (`.mp4`, `.webm`, `.mov`) in den Ordner `./gallery-images` neben der `docker-compose.yml`.
 2. Bilder und Videos erscheinen automatisch in der Galerie (kurz neu laden reicht). Videos werden in der Diashow mit eigenem Ton abgespielt – die Hintergrundmusik pausiert währenddessen automatisch und läuft danach weiter. Nach dem Videoende springt die Diashow zum nächsten Element.
-3. Standard-Reihenfolge: alphabetisch nach Dateiname, z. B. `01-hochzeit.jpg`, `02-familie.jpg`.
+3. Standard-Reihenfolge: **chronologisch nach Aufnahmedatum** (aus den EXIF-Daten der Kamera; Videos und Bilder ohne EXIF nach Datei-Änderungsdatum). Eine eigene Reihenfolge lässt sich weiterhin über `captions.json` erzwingen (siehe unten).
 4. Titel werden automatisch aus dem Dateinamen erzeugt: `01-brautpaar-abendlicht.jpg` → **„Brautpaar Abendlicht"**.
 
 ### Eigene Reihenfolge & Titel (optional)
