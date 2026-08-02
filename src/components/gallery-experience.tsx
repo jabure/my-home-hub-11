@@ -207,17 +207,26 @@ export function GalleryExperience({
     return () => window.clearInterval(id);
   }, [playing, next, slideshowItems.length, isVideo]);
 
-  // Video beim Anzeigen starten, beim Verlassen stoppen
+  // Neues Video-Dia: von vorn starten (falls die Diashow gerade läuft)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-    if (isVideo && playing) {
-      video.currentTime = 0;
-      video.play().catch(() => {});
-    } else if (!playing) {
+    if (!video || !isVideo) return;
+    video.currentTime = 0;
+    if (playing) video.play().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  // Play/Pause umschalten (per Kopfzeilen-Button oder Video-eigenen Steuerelementen) -
+  // OHNE die Abspielposition zurückzusetzen, damit Pausieren/Spulen erhalten bleibt
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVideo) return;
+    if (playing) {
+      if (video.paused) video.play().catch(() => {});
+    } else if (!video.paused) {
       video.pause();
     }
-  }, [isVideo, playing, index]);
+  }, [isVideo, playing]);
 
   // Tastatursteuerung
   useEffect(() => {
@@ -371,7 +380,7 @@ export function GalleryExperience({
       <div className="pointer-events-none absolute inset-0 wedding-vignette" />
 
       {/* Fortschrittsbalken bis zum nächsten Bild */}
-      {playing && slideshowItems.length > 1 && (
+      {playing && !isVideo && slideshowItems.length > 1 && (
         <div className="absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10">
           <div
             key={index}
@@ -539,10 +548,13 @@ export function GalleryExperience({
                       src={item.src}
                       playsInline
                       preload="auto"
-                      controls={false}
+                      controls
+                      controlsList="nodownload noremoteplayback"
                       onEnded={() => {
                         if (playing) next();
                       }}
+                      onPlay={() => setPlaying(true)}
+                      onPause={() => setPlaying(false)}
                       onContextMenu={(e) => e.preventDefault()}
                       className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
                     />
