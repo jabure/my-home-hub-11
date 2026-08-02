@@ -248,3 +248,43 @@ export function warmResizeCache(filenames: string[]): void {
     warmupRunning = false;
   });
 }
+
+// --- Aufnahmedatum für die Sortierung ---
+// Für Fotos wird das EXIF-Aufnahmedatum gelesen (das echte Datum aus der Kamera),
+// als Fallback (und für Videos) gilt das Datei-Änderungsdatum.
+// Ergebnisse werden im Speicher gecacht (ungültig bei geänderter Datei).
+const dateCache = new Map<string, { mtimeMs: number; timestamp: number }>();
+
+export async function mediaTimestamp(name: string): Promise<number> {
+  const filePath = safeGalleryFilePath(name);
+  if (!filePath) return 0;
+  const { stat } = await import("node:fs/promises");
+  let mtimeMs = 0;
+  try {
+    mtimeMs = (await stat(filePath)).mtimeMs;
+  } catch {
+    return 0;
+  }
+  const cached = dateCache.get(name);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.timestamp;
+
+  let timestamp = mtimeMs;
+  if (mediaTypeFor(name) === "image") {
+    try {
+      const sharp = (await import("sharp")).default;
+      const exifReader = (await import("exif-reader")).default;
+      const meta = await sharp(filePath).metadata();
+      if (meta.exif) {
+        const parsed = exifReader(meta.exif);
+        const taken = parsed?.Photo?.DateTimeOriginal ?? parsed?.Image?.DateTime;
+        if (taken instanceof Date && !Number.isNaN(taken.getTime())) {
+          timestamp = taken.getTime();
+        }
+      }
+    } catch {
+      // Kein/kaputtes EXIF -> Datei-Datum verwenden
+    }
+  }
+  dateCache.set(name, { mtimeMs, timestamp });
+  return timestamp;
+}
