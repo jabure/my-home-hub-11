@@ -58,7 +58,9 @@ Beide Felder sind optional – du kannst auch nur eines von beiden angeben.
 - PIN wird über `GALLERY_PIN` in `docker-compose.yml` gesetzt (Standard `1234` – **bitte ändern**).
 - Nach korrekter Eingabe wird ein Cookie gesetzt (`gallery_access`, 30 Tage gültig).
 - Ohne gültigen Zugriff liefert der Server auch bei direktem Bildaufruf `401 Unauthorized`.
-- Nach **5 falschen Versuchen** wird die Eingabe für **60 Sekunden** gesperrt (pro IP-Adresse), um Durchprobieren zu erschweren.
+- Nach **5 falschen Versuchen** wird die Eingabe für **60 Sekunden** gesperrt (pro IP-Adresse).
+- Wiederholt sich das (3 Sperren in Folge), wird die IP für **24 Stunden** komplett gesperrt.
+- Optional: Benachrichtigung bei jeder Sperre über [ntfy.sh](https://ntfy.sh) — eigenes Topic anlegen und als `NTFY_URL` in der `docker-compose.yml` eintragen (auskommentiert, einfach aktivieren).
 
 ## Hintergrundmusik (optional)
 
@@ -114,3 +116,26 @@ ports:
 | `.dockerignore` | Ausschluss unnötiger Dateien vom Build |
 | `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden (optional mit `captions.json` und einer Musikdatei) |
 
+
+
+## Gästefotos (eigenes Album)
+
+In der Bilder-Übersicht (Raster-Symbol) gibt es einen Abschnitt „Gästefotos" mit einem Upload-Button. Jeder mit der normalen Galerie-PIN kann dort eigene Fotos/Videos hochladen (max. 20 Dateien, je max. 50 MB).
+
+- Gästefotos landen in einem **eigenen Unterordner** (`gallery-images/gaeste/`) und laufen **nicht** automatisch in der Haupt-Diashow mit — sie erscheinen ausschließlich im eigenen Abschnitt der Übersicht.
+- So bleibt die kuratierte Haupt-Diashow unangetastet, während trotzdem alle Gästefotos gesammelt werden.
+- Die hochgeladenen Dateien sind ganz normale Dateien im Ordner — ihr könnt sie jederzeit manuell sichten, sortieren oder ins Hauptalbum verschieben.
+
+## Bilderrahmen-Modus (für TV/Tablet)
+
+Unter `/rahmen` gibt es einen zweiten, PIN-freien Zugang speziell für ein Tablet oder Smart-TV im Wohnzimmer:
+
+1. `FRAME_TOKEN` in der `docker-compose.yml` auf einen eigenen, geheimen Code setzen (mind. 8 Zeichen).
+2. Auf dem Gerät `http://eure-adresse/rahmen` öffnen, Code einmalig eingeben.
+3. Das Gerät merkt sich den Zugang **1 Jahr lang** und zeigt danach direkt die Diashow im Vollbild — ganz ohne "Verlassen"-Button, dafür mit stummgeschalteter Musik als Standard (lässt sich am Gerät selbst wieder anschalten).
+
+Der Rahmen-Modus nutzt denselben Fehlversuch-Schutz (Sperre/Bann) wie die normale PIN.
+
+## "Verheiratet seit"-Zähler
+
+Auf der Startseite erscheint automatisch ein kleiner Zähler, sobald `WEDDING_DATE` gesetzt ist (Format `JJJJ-MM-TT` in der `docker-compose.yml`). Ohne gesetztes Datum wird nichts angezeigt.
