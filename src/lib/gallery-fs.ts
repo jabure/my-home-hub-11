@@ -95,13 +95,30 @@ export function safeGalleryFilePath(filename: string): string | null {
   return resolved;
 }
 
-// --- Einfaches In-Memory Rate-Limiting für die PIN-Eingabe ---
-// Schützt vor Durchprobieren; reicht für einen einzelnen Server-Prozess.
+// --- In-Memory Rate-Limiting für die PIN-Eingabe mit eskalierender IP-Sperre ---
+// 5 Fehlversuche -> 60s Sperre. Nach der 3. Sperre -> 24h IP-Bann.
+// (Zähler leben im Speicher und werden bei Container-Neustart zurückgesetzt.)
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
+const BAN_AFTER_LOCKOUTS = 3;
+const BAN_MS = 24 * 60 * 60 * 1000;
 
-type AttemptState = { count: number; lockedUntil: number };
+type AttemptState = { count: number; lockedUntil: number; lockouts: number };
 const attempts = new Map<string, AttemptState>();
+
+// Optional: Benachrichtigung über ntfy.sh bei jeder Sperre (NTFY_URL env setzen)
+function notifyLockout(ip: string, banned: boolean): void {
+  const url = process.env.NTFY_URL;
+  if (!url) return;
+  const message = banned
+    ? `Galerie: IP ${ip} wurde nach wiederholten Fehlversuchen für 24 Stunden gesperrt.`
+    : `Galerie: IP ${ip} wurde nach 5 falschen PIN-Versuchen für 60 Sekunden gesperrt.`;
+  fetch(url, {
+    method: "POST",
+    body: message,
+    headers: { Title: "PIN-Fehlversuche", Priority: banned ? "high" : "default" },
+  }).catch(() => {});
+}
 
 export function getClientKey(request: Request): string {
   return (
@@ -120,11 +137,14 @@ export function isLockedOut(key: string): number {
 
 export function registerFailedAttempt(key: string): void {
   const now = Date.now();
-  const state = attempts.get(key) ?? { count: 0, lockedUntil: 0 };
+  const state = attempts.get(key) ?? { count: 0, lockedUntil: 0, lockouts: 0 };
   state.count += 1;
   if (state.count >= MAX_ATTEMPTS) {
-    state.lockedUntil = now + LOCKOUT_MS;
     state.count = 0;
+    state.lockouts += 1;
+    const banned = state.lockouts >= BAN_AFTER_LOCKOUTS;
+    state.lockedUntil = now + (banned ? BAN_MS : LOCKOUT_MS);
+    notifyLockout(key, banned);
   }
   attempts.set(key, state);
 }
@@ -189,13 +209,15 @@ export function isResizeSize(v: string | null): v is ResizeSize {
 export async function getResizedImage(
   filename: string,
   size: ResizeSize,
+  album?: "gaeste",
 ): Promise<Buffer | null> {
-  const srcPath = safeGalleryFilePath(filename);
+  const srcPath = album === "gaeste" ? safeGuestFilePath(filename) : safeGalleryFilePath(filename);
   if (!srcPath) return null;
 
   const { mkdir, stat, readFile, writeFile } = await import("node:fs/promises");
   const cacheDir = path.join(GALLERY_DIR, ".cache");
-  const cachePath = path.join(cacheDir, `${size}-${path.basename(filename)}.webp`);
+  const prefix = album === "gaeste" ? "gaeste-" : "";
+  const cachePath = path.join(cacheDir, `${prefix}${size}-${path.basename(filename)}.webp`);
 
   try {
     const [srcStat, cacheStat] = await Promise.all([stat(srcPath), stat(cachePath)]);
@@ -287,4 +309,50 @@ export async function mediaTimestamp(name: string): Promise<number> {
   }
   dateCache.set(name, { mtimeMs, timestamp });
   return timestamp;
+}
+
+// --- Gäste-Album (eigener Unterordner für hochgeladene Fotos) ---
+export const GUEST_DIR_NAME = "gaeste";
+export function guestDir(): string {
+  return path.join(GALLERY_DIR, GUEST_DIR_NAME);
+}
+
+export function safeGuestFilePath(filename: string): string | null {
+  const base = path.basename(filename);
+  const dir = guestDir();
+  const resolved = path.resolve(dir, base);
+  if (!resolved.startsWith(dir + path.sep)) return null;
+  return resolved;
+}
+
+export function sanitizeUploadName(name: string): string {
+  const base = path.basename(name).replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return base.length > 0 ? base.slice(0, 120) : "upload";
+}
+
+export async function listGuestFiles(): Promise<string[]> {
+  try {
+    const { readdir } = await import("node:fs/promises");
+    const entries = await readdir(guestDir(), { withFileTypes: true });
+    return entries
+      .filter((e) => e.isFile() && MEDIA_EXTENSIONS.has(path.extname(e.name).toLowerCase()))
+      .map((e) => e.name)
+      .sort((a, b) => a.localeCompare(b, "de")); // Zeitstempel-Präfix = Upload-Reihenfolge
+  } catch {
+    return [];
+  }
+}
+
+// --- Bilderrahmen-Modus: Zugriff per Token statt PIN (FRAME_TOKEN env) ---
+export function getFrameToken(): string | undefined {
+  const t = process.env.FRAME_TOKEN;
+  return t && t.length >= 8 ? t : undefined;
+}
+
+// --- Hochzeitsdatum für den "Verheiratet seit"-Zähler (WEDDING_DATE env, z. B. 2024-05-12) ---
+export function getWeddingDate(): string | null {
+  const raw = process.env.WEDDING_DATE;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : raw;
 }
