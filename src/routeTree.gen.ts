@@ -10,17 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RahmenRouteImport } from './routes/rahmen'
+import { Route as ApiFrameAuthRouteImport } from './routes/api/frame-auth'
 import { Route as ApiGalleryRouteImport } from './routes/api/gallery'
 import { Route as ApiGalleryAuthRouteImport } from './routes/api/gallery-auth'
 import { Route as ApiGalleryLogoutRouteImport } from './routes/api/gallery-logout'
 import { Route as ApiGalleryMusicRouteImport } from './routes/api/gallery-music'
+import { Route as ApiGalleryUploadRouteImport } from './routes/api/gallery-upload'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiSiteConfigRouteImport } from './routes/api/site-config'
 import { Route as ApiWeatherConfigRouteImport } from './routes/api/weather-config'
+import { Route as ApiGalleryGuestFilenameRouteImport } from './routes/api/gallery-guest/$filename'
 import { Route as ApiGalleryFilenameRouteImport } from './routes/api/gallery/$filename'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RahmenRoute = RahmenRouteImport.update({
+  id: '/rahmen',
+  path: '/rahmen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFrameAuthRoute = ApiFrameAuthRouteImport.update({
+  id: '/api/frame-auth',
+  path: '/api/frame-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGalleryRoute = ApiGalleryRouteImport.update({
@@ -43,14 +58,29 @@ const ApiGalleryMusicRoute = ApiGalleryMusicRouteImport.update({
   path: '/api/gallery-music',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGalleryUploadRoute = ApiGalleryUploadRouteImport.update({
+  id: '/api/gallery-upload',
+  path: '/api/gallery-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSiteConfigRoute = ApiSiteConfigRouteImport.update({
+  id: '/api/site-config',
+  path: '/api/site-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWeatherConfigRoute = ApiWeatherConfigRouteImport.update({
   id: '/api/weather-config',
   path: '/api/weather-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGalleryGuestFilenameRoute = ApiGalleryGuestFilenameRouteImport.update({
+  id: '/api/gallery-guest/$filename',
+  path: '/api/gallery-guest/$filename',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGalleryFilenameRoute = ApiGalleryFilenameRouteImport.update({
@@ -61,76 +91,111 @@ const ApiGalleryFilenameRoute = ApiGalleryFilenameRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/rahmen': typeof RahmenRoute
+  '/api/frame-auth': typeof ApiFrameAuthRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
   '/api/gallery-logout': typeof ApiGalleryLogoutRoute
   '/api/gallery-music': typeof ApiGalleryMusicRoute
+  '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/site-config': typeof ApiSiteConfigRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
+  '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/rahmen': typeof RahmenRoute
+  '/api/frame-auth': typeof ApiFrameAuthRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
   '/api/gallery-logout': typeof ApiGalleryLogoutRoute
   '/api/gallery-music': typeof ApiGalleryMusicRoute
+  '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/site-config': typeof ApiSiteConfigRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
+  '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/rahmen': typeof RahmenRoute
+  '/api/frame-auth': typeof ApiFrameAuthRoute
   '/api/gallery': typeof ApiGalleryRouteWithChildren
   '/api/gallery-auth': typeof ApiGalleryAuthRoute
   '/api/gallery-logout': typeof ApiGalleryLogoutRoute
   '/api/gallery-music': typeof ApiGalleryMusicRoute
+  '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/site-config': typeof ApiSiteConfigRoute
   '/api/weather-config': typeof ApiWeatherConfigRoute
+  '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/rahmen'
+    | '/api/frame-auth'
     | '/api/gallery'
     | '/api/gallery-auth'
     | '/api/gallery-logout'
     | '/api/gallery-music'
+    | '/api/gallery-upload'
     | '/api/health'
+    | '/api/site-config'
     | '/api/weather-config'
+    | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/rahmen'
+    | '/api/frame-auth'
     | '/api/gallery'
     | '/api/gallery-auth'
     | '/api/gallery-logout'
     | '/api/gallery-music'
+    | '/api/gallery-upload'
     | '/api/health'
+    | '/api/site-config'
     | '/api/weather-config'
+    | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   id:
     | '__root__'
     | '/'
+    | '/rahmen'
+    | '/api/frame-auth'
     | '/api/gallery'
     | '/api/gallery-auth'
     | '/api/gallery-logout'
     | '/api/gallery-music'
+    | '/api/gallery-upload'
     | '/api/health'
+    | '/api/site-config'
     | '/api/weather-config'
+    | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  RahmenRoute: typeof RahmenRoute
+  ApiFrameAuthRoute: typeof ApiFrameAuthRoute
   ApiGalleryRoute: typeof ApiGalleryRouteWithChildren
   ApiGalleryAuthRoute: typeof ApiGalleryAuthRoute
   ApiGalleryLogoutRoute: typeof ApiGalleryLogoutRoute
   ApiGalleryMusicRoute: typeof ApiGalleryMusicRoute
+  ApiGalleryUploadRoute: typeof ApiGalleryUploadRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiSiteConfigRoute: typeof ApiSiteConfigRoute
   ApiWeatherConfigRoute: typeof ApiWeatherConfigRoute
+  ApiGalleryGuestFilenameRoute: typeof ApiGalleryGuestFilenameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -140,6 +205,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rahmen': {
+      id: '/rahmen'
+      path: '/rahmen'
+      fullPath: '/rahmen'
+      preLoaderRoute: typeof RahmenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/frame-auth': {
+      id: '/api/frame-auth'
+      path: '/api/frame-auth'
+      fullPath: '/api/frame-auth'
+      preLoaderRoute: typeof ApiFrameAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/gallery': {
@@ -170,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGalleryMusicRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/gallery-upload': {
+      id: '/api/gallery-upload'
+      path: '/api/gallery-upload'
+      fullPath: '/api/gallery-upload'
+      preLoaderRoute: typeof ApiGalleryUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -177,11 +263,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/site-config': {
+      id: '/api/site-config'
+      path: '/api/site-config'
+      fullPath: '/api/site-config'
+      preLoaderRoute: typeof ApiSiteConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/weather-config': {
       id: '/api/weather-config'
       path: '/api/weather-config'
       fullPath: '/api/weather-config'
       preLoaderRoute: typeof ApiWeatherConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gallery-guest/$filename': {
+      id: '/api/gallery-guest/$filename'
+      path: '/api/gallery-guest/$filename'
+      fullPath: '/api/gallery-guest/$filename'
+      preLoaderRoute: typeof ApiGalleryGuestFilenameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/gallery/$filename': {
@@ -208,12 +308,17 @@ const ApiGalleryRouteWithChildren = ApiGalleryRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  RahmenRoute: RahmenRoute,
+  ApiFrameAuthRoute: ApiFrameAuthRoute,
   ApiGalleryRoute: ApiGalleryRouteWithChildren,
   ApiGalleryAuthRoute: ApiGalleryAuthRoute,
   ApiGalleryLogoutRoute: ApiGalleryLogoutRoute,
   ApiGalleryMusicRoute: ApiGalleryMusicRoute,
+  ApiGalleryUploadRoute: ApiGalleryUploadRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiSiteConfigRoute: ApiSiteConfigRoute,
   ApiWeatherConfigRoute: ApiWeatherConfigRoute,
+  ApiGalleryGuestFilenameRoute: ApiGalleryGuestFilenameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
