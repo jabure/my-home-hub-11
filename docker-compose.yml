@@ -14,6 +14,13 @@ services:
       - WEATHER_LAT=48.1667
       - WEATHER_LON=14.0333
       - WEATHER_LOCATION_NAME=Wels
+      # Datum der Hochzeit für den "Verheiratet seit"-Zähler (Format: JJJJ-MM-TT)
+      - WEDDING_DATE=2024-05-12
+      # Geheimer Code für den Bilderrahmen-Modus unter /rahmen (min. 8 Zeichen, unbedingt ändern!)
+      - FRAME_TOKEN=change-me-12345
+      # Optional: Benachrichtigung bei gesperrten PIN-Versuchen über ntfy.sh
+      # (eigenes Topic unter https://ntfy.sh/dein-topic-name anlegen)
+      # - NTFY_URL=https://ntfy.sh/dein-topic-name
     volumes:
       # Bilder hier reinlegen -> erscheinen automatisch in der Galerie
       - ./gallery-images:/data/gallery
