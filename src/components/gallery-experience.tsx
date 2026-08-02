@@ -574,14 +574,14 @@ export function GalleryExperience({
 
       {/* Video-Ansicht: öffnet sich nur nach Klick, läuft nie automatisch in der Diashow mit */}
       {viewingVideo && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => setViewingVideo(null)}
             aria-label="Video schließen"
-            className="absolute right-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20 sm:right-8 sm:top-8"
+            className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white/25 sm:right-8 sm:top-8"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
           <div className="wedding-frame overflow-hidden rounded-[4px]">
             <video
