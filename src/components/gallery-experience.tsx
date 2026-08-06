@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   Upload,
   Loader2,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 
 export type GalleryItem = {
@@ -176,6 +178,22 @@ export function GalleryExperience({
   const [audioFailed, setAudioFailed] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      containerRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, []);
   const failedTracksRef = useRef(0);
   const hasMusic = musicTracks.length > 0 && !audioFailed;
   const currentTrack = musicTracks[trackIndex] ?? null;
@@ -340,7 +358,10 @@ export function GalleryExperience({
   }
 
   return (
-    <div className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden">
+    <div
+      ref={containerRef}
+      className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden"
+    >
       {hasMusic && (
         <audio
           ref={audioRef}
@@ -504,6 +525,14 @@ export function GalleryExperience({
             className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
           >
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Vollbild verlassen" : "Vollbild"}
+            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
+          >
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
         </div>
       </div>
