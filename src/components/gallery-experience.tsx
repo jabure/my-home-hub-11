@@ -194,6 +194,36 @@ export function GalleryExperience({
       containerRef.current?.requestFullscreen().catch(() => {});
     }
   }, []);
+
+  // Im Vollbild: nur das Bild zeigen, Bedienelemente bei Inaktivität ausblenden
+  // (bei Maus-/Touch-Aktivität kurz wieder einblenden)
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const chromeHideTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      setChromeVisible(true);
+      return;
+    }
+    const resetTimer = () => {
+      setChromeVisible(true);
+      if (chromeHideTimer.current !== null) window.clearTimeout(chromeHideTimer.current);
+      chromeHideTimer.current = window.setTimeout(() => setChromeVisible(false), 3000);
+    };
+    resetTimer();
+    const el = containerRef.current;
+    el?.addEventListener("mousemove", resetTimer);
+    el?.addEventListener("touchstart", resetTimer);
+    el?.addEventListener("click", resetTimer);
+    return () => {
+      if (chromeHideTimer.current !== null) window.clearTimeout(chromeHideTimer.current);
+      el?.removeEventListener("mousemove", resetTimer);
+      el?.removeEventListener("touchstart", resetTimer);
+      el?.removeEventListener("click", resetTimer);
+    };
+  }, [isFullscreen]);
+
+  // Übersicht und Video-Ansicht haben eigene Bedienelemente -> Kopfzeile dafür nicht ausblenden
   const failedTracksRef = useRef(0);
   const hasMusic = musicTracks.length > 0 && !audioFailed;
   const currentTrack = musicTracks[trackIndex] ?? null;
@@ -222,6 +252,8 @@ export function GalleryExperience({
 
   const [viewingVideo, setViewingVideo] = useState<GalleryItem | null>(null);
   const videoOpen = viewingVideo !== null;
+  // Übersicht und Video-Ansicht haben eigene Bedienelemente -> Kopfzeile dafür nicht ausblenden
+  const showChrome = chromeVisible || showOverview || videoOpen;
 
   // Diashow läuft automatisch durch - pausiert, solange ein Video per Klick geöffnet ist
   useEffect(() => {
@@ -398,7 +430,11 @@ export function GalleryExperience({
 
       {/* Fortschrittsbalken bis zum nächsten Bild */}
       {playing && !videoOpen && slideshowItems.length > 1 && (
-        <div className="absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10">
+        <div
+          className={`absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10 transition-opacity duration-500 ${
+            showChrome ? "opacity-100" : "opacity-0"
+          }`}
+        >
           <div
             key={index}
             className="h-full bg-gradient-to-r from-[oklch(0.85_0.09_85)] to-[oklch(0.78_0.1_50)]"
@@ -408,7 +444,11 @@ export function GalleryExperience({
       )}
 
       {/* Kopfzeile */}
-      <div className="relative z-30 flex items-center justify-between gap-3 px-4 pt-5 sm:px-8">
+      <div
+        className={`relative z-30 flex items-center justify-between gap-3 px-4 pt-5 transition-opacity duration-500 sm:px-8 ${
+          showChrome ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
         {frameMode ? (
           <span />
         ) : (
@@ -585,7 +625,9 @@ export function GalleryExperience({
               type="button"
               onClick={prev}
               aria-label="Vorheriges Bild"
-              className="absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/25 sm:left-6"
+              className={`absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition-opacity duration-500 hover:bg-white/25 sm:left-6 ${
+                showChrome ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -593,7 +635,9 @@ export function GalleryExperience({
               type="button"
               onClick={next}
               aria-label="Nächstes Bild"
-              className="absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/25 sm:right-6"
+              className={`absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition-opacity duration-500 hover:bg-white/25 sm:right-6 ${
+                showChrome ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -633,7 +677,11 @@ export function GalleryExperience({
 
       {/* Titel mit Herz-Ornament */}
       {hasSlideshow && (
-        <div className="relative z-10 px-4 text-center sm:px-8">
+        <div
+          className={`relative z-10 px-4 text-center transition-opacity duration-500 sm:px-8 ${
+            showChrome ? "opacity-100" : "opacity-0"
+          }`}
+        >
           <div className="mx-auto mb-2 flex items-center justify-center gap-3 text-[oklch(0.85_0.09_85)]">
             <span className="h-px w-10 bg-gradient-to-r from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
             <Heart className="h-3.5 w-3.5" fill="currentColor" />
@@ -812,7 +860,11 @@ export function GalleryExperience({
 
       {/* Filmstreifen */}
       {mainItems.length > 0 && (
-        <div className="relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 sm:justify-center sm:px-8">
+        <div
+          className={`relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 transition-opacity duration-500 sm:justify-center sm:px-8 ${
+            showChrome ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        >
           {mainItems.map((item) => (
             <button
               type="button"
