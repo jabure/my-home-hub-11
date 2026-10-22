@@ -48,6 +48,7 @@ function Home() {
       errorNonce={access.errorNonce}
       lockedForSeconds={access.lockedForSeconds}
       submitting={access.submitting}
+      opening={access.opening}
       onSubmit={access.submit}
     />
   );

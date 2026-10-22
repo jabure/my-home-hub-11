@@ -44,6 +44,8 @@ export function useAlbumAccess({
   const [lockedForSeconds, setLockedForSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [rememberedHint, setRememberedHint] = useState(false);
+  // Kurzer Moment zwischen richtiger PIN und Galerie: die Einladungskarte "öffnet" sich
+  const [opening, setOpening] = useState(false);
 
   const load = useCallback(async (isInitialCheck = false) => {
     try {
@@ -106,13 +108,19 @@ export function useAlbumAccess({
         }
         if (!res.ok) {
           fail(
-            bodyKey === "pin" ? "Die PIN stimmt leider nicht." : "Der Code stimmt leider nicht.",
+            bodyKey === "pin"
+              ? "Diese PIN passt nicht. Bitte nochmal eingeben."
+              : "Dieser Code passt nicht. Bitte nochmal eingeben.",
           );
           setSecret("");
           return;
         }
         setSecret("");
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        setOpening(true);
+        await new Promise((r) => window.setTimeout(r, reduceMotion ? 0 : 1100));
         await load(false);
+        setOpening(false);
       } catch {
         fail("Keine Verbindung zum Server. Bitte nochmal versuchen.");
       } finally {
@@ -148,6 +156,7 @@ export function useAlbumAccess({
     submitting,
     submit,
     rememberedHint,
+    opening,
     logout,
     reload: () => load(false),
   };

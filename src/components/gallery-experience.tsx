@@ -67,18 +67,6 @@ function formatDate(iso: string | null | undefined): string | null {
   });
 }
 
-function CoupleNames({ names }: { names: string }) {
-  const parts = names.split(/\s*&\s*/);
-  if (parts.length !== 2) return <>{names}</>;
-  return (
-    <>
-      {parts[0]}
-      <span className="mx-[0.18em] not-italic text-gold">&amp;</span>
-      {parts[1]}
-    </>
-  );
-}
-
 // Einzelansicht (Lightbox) für Videos und Gästefotos, mit Blättern innerhalb der Liste
 type Viewer = { list: GalleryItem[]; index: number };
 
@@ -420,7 +408,7 @@ export function GalleryExperience({
   return (
     <div
       ref={containerRef}
-      className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden text-ivory"
+      className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden text-ivory animate-gallery-in"
     >
       {hasMusic && (
         <audio
@@ -455,6 +443,7 @@ export function GalleryExperience({
       {/* Warmer Champagner-Schleier + Vignette */}
       <div className="pointer-events-none absolute inset-0 bg-[oklch(0.22_0.02_50)]/60" />
       <div className="pointer-events-none absolute inset-0 wedding-vignette" />
+      <div className="grain absolute inset-0 z-[1]" />
 
       {/* Fortschrittsbalken bis zum nächsten Bild */}
       {playing && !viewerOpen && !showOverview && slideCount > 1 && (
@@ -487,11 +476,11 @@ export function GalleryExperience({
           )}
           {/* Namen nur in der Übersicht, in der Diashow stehen sie schon unter dem Foto */}
           <div className={`min-w-0 animate-fade-in ${showOverview ? "hidden sm:block" : "hidden"}`}>
-            <p className="truncate font-serif text-xl italic leading-tight">
-              <CoupleNames names={coupleNames} />
+            <p className="gold-foil truncate font-serif text-2xl italic leading-tight">
+              {coupleNames}
             </p>
             {dateLabel && (
-              <p className="text-[10px] uppercase tracking-[0.3em] text-ivory/45">{dateLabel}</p>
+              <p className="small-caps font-serif text-sm text-ivory/55">{dateLabel}</p>
             )}
           </div>
         </div>
@@ -641,19 +630,24 @@ export function GalleryExperience({
             <figure
               key={item.src}
               aria-hidden={i !== index}
-              className={`absolute transition-opacity duration-[1600ms] ease-in-out ${
-                i === index ? "opacity-100" : "pointer-events-none opacity-0"
+              className={`absolute transition-[opacity,transform] duration-[1800ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
+                i === index
+                  ? "scale-100 opacity-100"
+                  : "pointer-events-none scale-[1.025] opacity-0"
               }`}
             >
-              <div className="wedding-frame overflow-hidden rounded-[3px]">
-                <img
-                  src={sizedSrc(item.src, "display")}
-                  alt={item.title}
-                  loading="eager"
-                  decoding="async"
-                  className="max-h-[60vh] w-auto max-w-[92vw] object-contain animate-ken-burns-inout sm:max-h-[64vh]"
-                  {...protectedImgProps()}
-                />
+              <div className="wedding-frame rounded-[3px]">
+                {/* Eigenes "Fenster": der Zoom bleibt innen, Passepartout und Goldlinie stehen still */}
+                <div className="frame-window overflow-hidden">
+                  <img
+                    src={sizedSrc(item.src, "display")}
+                    alt={item.title}
+                    loading="eager"
+                    decoding="async"
+                    className="block max-h-[60vh] w-auto max-w-[calc(92vw-28px)] object-contain animate-ken-burns-inout sm:max-h-[64vh]"
+                    {...protectedImgProps()}
+                  />
+                </div>
               </div>
             </figure>
           );
@@ -689,14 +683,12 @@ export function GalleryExperience({
             <Heart className="h-3 w-3" fill="currentColor" />
             <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold/70 sm:w-16" />
           </div>
-          <p className="wedding-caption text-2xl sm:text-3xl">
-            <CoupleNames names={coupleNames} />
-          </p>
-          <p className="mt-1.5 text-[10px] uppercase tracking-[0.35em] text-ivory/45">
-            {dateLabel ? `${dateLabel} · ` : ""}
-            <span className="tabular-nums">
-              {index + 1} / {slideCount}
-            </span>
+          <p className="wedding-caption gold-foil pb-1 text-3xl sm:text-4xl">{coupleNames}</p>
+          {dateLabel && (
+            <p className="small-caps font-serif text-base text-ivory/60">{dateLabel}</p>
+          )}
+          <p className="mt-0.5 font-serif text-sm italic text-ivory/40 tabular-nums">
+            Foto {index + 1} von {slideCount}
           </p>
         </div>
       )}
@@ -924,8 +916,8 @@ export function GalleryExperience({
           <p className="wedding-caption mt-5 max-w-[90vw] truncate text-xl">{viewing.title}</p>
           {viewer.list.length > 1 && (
             <>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-ivory/45 tabular-nums">
-                {viewer.index + 1} / {viewer.list.length}
+              <p className="mt-1 font-serif text-sm italic text-ivory/45 tabular-nums">
+                {viewer.index + 1} von {viewer.list.length}
               </p>
               <button
                 type="button"
@@ -975,10 +967,8 @@ function OverviewHeading({
 }) {
   return (
     <div className={`flex items-baseline gap-3 ${inline ? "" : "mb-4"} ${spaced ? "mt-12" : ""}`}>
-      <h2 className="font-serif text-3xl italic text-ivory">{title}</h2>
-      <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 tabular-nums">
-        {count}
-      </span>
+      <h2 className="gold-foil pb-1 font-serif text-4xl italic">{title}</h2>
+      <span className="font-serif text-lg italic text-ivory/45 tabular-nums">{count}</span>
     </div>
   );
 }

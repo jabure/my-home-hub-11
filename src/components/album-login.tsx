@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Heart, Loader2, Lock } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import backdrop from "@/assets/hero-1.webp";
 import { protectedImgProps } from "@/components/gallery-experience";
+import { GoldDust } from "@/components/gold-dust";
+import { WaxSeal } from "@/components/wax-seal";
 import { daysSince, formatWeddingDate, type SiteConfig } from "@/lib/use-album-access";
 
 type Props = {
@@ -14,27 +16,38 @@ type Props = {
   errorNonce: number;
   lockedForSeconds: number;
   submitting: boolean;
+  opening: boolean;
   onSubmit: (e: React.FormEvent) => void;
 };
-
-// Namen mit goldenem "&" darstellen ("Tanja & Christopher")
-function CoupleNames({ names }: { names: string }) {
-  const parts = names.split(/\s*&\s*/);
-  if (parts.length !== 2) return <>{names}</>;
-  return (
-    <>
-      {parts[0]}
-      <span className="mx-[0.18em] text-gold not-italic">&amp;</span>
-      {parts[1]}
-    </>
-  );
-}
 
 function formatCountdown(seconds: number) {
   if (seconds < 120) return `${seconds} Sekunden`;
   const h = Math.floor(seconds / 3600);
   const m = Math.ceil((seconds % 3600) / 60);
   return h > 0 ? `${h} Std. ${m} Min.` : `${m} Minuten`;
+}
+
+function marriedLabel(days: number) {
+  if (days === 0) return "Heute ist unser Hochzeitstag";
+  return `Seit ${days.toLocaleString("de-AT")} ${days === 1 ? "Tag" : "Tagen"} verheiratet`;
+}
+
+// Geschwungenes Ornament unter den Namen, zeichnet sich beim Laden selbst
+function Flourish() {
+  return (
+    <svg viewBox="0 0 240 24" aria-hidden="true" className="h-6 w-56 text-[#b98a3e]">
+      <path
+        className="animate-draw"
+        style={{ ["--len" as string]: 260 }}
+        d="M4 12c22 0 30-8 46-8s20 12 36 12 18-10 34-10 18 10 34 10 20-12 36-12 24 8 46 8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
+      <circle cx="120" cy="6" r="2.2" fill="currentColor" />
+    </svg>
+  );
 }
 
 export function AlbumLogin(props: Props) {
@@ -45,8 +58,10 @@ export function AlbumLogin(props: Props) {
   const days = daysSince(config.weddingDate);
   const locked = lockedForSeconds > 0;
   const isPin = variant === "pin";
+  const opening = props.opening;
+  const names = config.coupleNames.split(/\s*&\s*/);
 
-  // Bei Fehler: Formular kurz schütteln und Eingabe wieder fokussieren
+  // Bei Fehler: Karte kurz schütteln und Eingabe wieder fokussieren
   useEffect(() => {
     if (errorNonce === 0) return;
     setShakeKey(errorNonce);
@@ -57,9 +72,15 @@ export function AlbumLogin(props: Props) {
     if (status === "locked" && !locked) inputRef.current?.focus();
   }, [status, locked]);
 
+  const cardAnimation = opening
+    ? "animate-card-open"
+    : shakeKey > 0
+      ? "animate-shake"
+      : "animate-card-arrive";
+
   return (
-    <main className="relative flex min-h-[100svh] flex-col overflow-hidden bg-background text-ivory">
-      {/* Hintergrundfoto mit langsamem Zoom, stark abgedunkelt */}
+    <main className="relative flex min-h-[100svh] flex-col overflow-hidden bg-velvet text-ivory">
+      {/* Samtiger Hintergrund: euer Foto, stark gedämpft, mit Goldstaub und Körnung */}
       <div aria-hidden="true" className="absolute inset-0">
         <img
           src={backdrop}
@@ -68,117 +89,137 @@ export function AlbumLogin(props: Props) {
           height={900}
           fetchPriority="high"
           decoding="async"
-          className="h-full w-full object-cover opacity-55 animate-ken-burns-slow"
+          className={`h-full w-full object-cover opacity-40 saturate-[0.85] ${
+            opening ? "animate-backdrop-open" : "animate-ken-burns-slow"
+          }`}
           {...protectedImgProps()}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[oklch(0.15_0.015_45)]/70 via-[oklch(0.15_0.015_45)]/55 to-[oklch(0.13_0.015_40)]/95" />
-        <div className="absolute inset-0 wedding-vignette" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(23_18_14/0.35)_0%,rgb(23_18_14/0.85)_70%,rgb(23_18_14/0.97)_100%)]" />
+        <GoldDust className="absolute inset-0 h-full w-full" />
+        <div className="grain absolute inset-0" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-        <p className="animate-rise-in text-[11px] font-medium uppercase tracking-[0.45em] text-gold/90">
-          {isPin ? "Unser Hochzeitsalbum" : "Bilderrahmen"}
-        </p>
+      <div className="relative z-10 flex flex-1 items-center justify-center px-4 pb-10 pt-20 sm:px-6">
+        <div className="relative w-full max-w-[25rem]">
+          {/* Wachssiegel, ragt über die Oberkante der Karte */}
+          <div
+            className={`absolute left-1/2 top-0 z-20 -ml-11 -mt-11 h-22 w-22 ${
+              opening ? "animate-seal-open" : "animate-seal-arrive"
+            }`}
+          >
+            <WaxSeal
+              names={config.coupleNames}
+              className="h-full w-full drop-shadow-[0_6px_6px_rgb(26_6_8/0.55)]"
+            />
+          </div>
 
-        <h1
-          className="mt-6 animate-rise-in text-[2.75rem] leading-[1.05] italic text-ivory drop-shadow-[0_2px_24px_oklch(0.1_0.02_40/0.6)] sm:text-7xl"
-          style={{ animationDelay: "120ms" }}
-        >
-          <CoupleNames names={config.coupleNames} />
-        </h1>
+          <section
+            key={shakeKey}
+            aria-labelledby="couple-names"
+            className={`invitation-paper relative overflow-hidden rounded-[4px] px-7 pb-9 pt-16 text-center text-ink sm:px-10 ${cardAnimation}`}
+          >
+            {/* Doppelte Goldlinie wie bei gedruckten Einladungen */}
+            <div className="pointer-events-none absolute inset-3 rounded-[2px] border border-[#b98a3e]/45" />
+            <div className="pointer-events-none absolute inset-[17px] rounded-[1px] border border-[#b98a3e]/25" />
+            <div className="grain pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-multiply" />
 
-        <div
-          className="mt-7 flex w-full max-w-xs animate-rise-in items-center gap-4 text-gold"
-          style={{ animationDelay: "240ms" }}
-        >
-          <span className="gold-rule flex-1" />
-          <Heart className="h-3.5 w-3.5 shrink-0" fill="currentColor" />
-          <span className="gold-rule flex-1" />
-        </div>
+            <p className="relative font-serif text-[1.05rem] italic text-ink/70">
+              {isPin
+                ? "Willkommen in unserem Hochzeitsalbum"
+                : "Dieses Gerät wird zum Bilderrahmen"}
+            </p>
 
-        {(dateLabel || days !== null) && (
-          <div className="mt-6 animate-rise-in space-y-1.5" style={{ animationDelay: "320ms" }}>
+            <h1
+              id="couple-names"
+              className="relative mt-5 font-serif italic leading-[0.95] drop-shadow-[0_1px_0_rgb(255_255_255/0.6)]"
+            >
+              {names.length === 2 ? (
+                <>
+                  <span className="gold-foil-deep block pb-1 text-[3.25rem] sm:text-6xl">
+                    {names[0]}
+                  </span>
+                  <span className="gold-foil-deep block py-1 text-[2.4rem] not-italic">&amp;</span>
+                  <span className="gold-foil-deep block pb-2 text-[3.25rem] sm:text-6xl">
+                    {names[1]}
+                  </span>
+                </>
+              ) : (
+                <span className="gold-foil-deep block text-5xl">{config.coupleNames}</span>
+              )}
+            </h1>
+
+            <div className="relative mt-4 flex justify-center">
+              <Flourish />
+            </div>
+
             {dateLabel && (
-              <p className="text-xs uppercase tracking-[0.35em] text-ivory/75">{dateLabel}</p>
+              <p className="small-caps relative mt-4 font-serif text-xl text-ink">{dateLabel}</p>
             )}
             {days !== null && (
-              <p className="font-serif text-lg italic text-ivory/65">
-                verheiratet seit{" "}
-                <span className="tabular-nums text-gold">{days.toLocaleString("de-AT")}</span> Tagen
+              <p className="relative mt-1 font-serif text-base italic text-ink/60">
+                {marriedLabel(days)}
               </p>
             )}
-          </div>
-        )}
 
-        <form
-          key={shakeKey}
-          onSubmit={props.onSubmit}
-          className={`glass-dark mt-12 w-full max-w-sm rounded-[1.75rem] px-6 py-7 shadow-[0_30px_80px_-30px_oklch(0.05_0.02_40/0.9)] sm:px-8 ${
-            shakeKey > 0 ? "animate-shake" : "animate-rise-in"
-          }`}
-          style={shakeKey > 0 ? undefined : { animationDelay: "440ms" }}
-        >
-          {status === "checking" ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-ivory/60">
-              <Loader2 className="h-4 w-4 animate-spin" /> Einen Moment…
-            </div>
-          ) : (
-            <>
-              <label
-                htmlFor="album-secret"
-                className="flex items-center justify-center gap-2 text-sm text-ivory/75"
-              >
-                <Lock className="h-3.5 w-3.5 text-gold" />
-                {isPin ? "Bitte gebt eure PIN ein" : "Zugangscode für dieses Gerät"}
-              </label>
-              <input
-                ref={inputRef}
-                id="album-secret"
-                type="password"
-                inputMode={isPin ? "numeric" : "text"}
-                autoComplete="off"
-                enterKeyHint="go"
-                disabled={locked}
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder={isPin ? "••••" : "Code"}
-                aria-invalid={error ? true : undefined}
-                aria-describedby="album-secret-msg"
-                className="mt-4 w-full border-0 border-b border-ivory/25 bg-transparent px-2 pb-2 text-center font-serif text-3xl tracking-[0.45em] text-ivory outline-none transition placeholder:text-ivory/25 focus:border-gold disabled:opacity-40"
-              />
-              <p
-                id="album-secret-msg"
-                role="status"
-                aria-live="polite"
-                className="mt-3 min-h-5 text-sm text-[oklch(0.8_0.11_35)]"
-              >
-                {locked
-                  ? `Zu viele Versuche – bitte warte ${formatCountdown(lockedForSeconds)}.`
-                  : error}
-              </p>
-              <button
-                type="submit"
-                disabled={props.submitting || secret.length === 0 || locked}
-                className="group mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-medium tracking-wide text-[oklch(0.2_0.02_50)] shadow-[0_10px_30px_-10px_oklch(0.84_0.085_82/0.6)] transition hover:bg-[oklch(0.88_0.08_84)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {props.submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Wird geprüft…
-                  </>
-                ) : (
-                  <>
-                    {isPin ? "Album öffnen" : "Gerät freischalten"}
-                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                  </>
-                )}
-              </button>
-            </>
-          )}
-        </form>
+            <form onSubmit={props.onSubmit} className="relative mt-8">
+              {status === "checking" ? (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink/55">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Album wird geladen
+                </div>
+              ) : (
+                <>
+                  <label htmlFor="album-secret" className="block text-sm text-ink/65">
+                    {isPin ? "PIN eingeben" : "Zugangscode eingeben"}
+                  </label>
+                  <input
+                    ref={inputRef}
+                    id="album-secret"
+                    type="password"
+                    inputMode={isPin ? "numeric" : "text"}
+                    autoComplete="off"
+                    enterKeyHint="go"
+                    disabled={locked || opening}
+                    value={secret}
+                    onChange={(e) => setSecret(e.target.value)}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby="album-secret-msg"
+                    className="mx-auto mt-2 block w-full max-w-[14rem] border-0 border-b border-ink/25 bg-transparent px-2 pb-1.5 text-center font-serif text-3xl tracking-[0.4em] text-ink caret-[#b98a3e] outline-none transition focus:border-[#b98a3e] disabled:opacity-40"
+                  />
+                  <p
+                    id="album-secret-msg"
+                    role="status"
+                    aria-live="polite"
+                    className="mt-2.5 min-h-5 text-sm text-wax"
+                  >
+                    {locked
+                      ? `Zu viele Versuche. Neuer Versuch in ${formatCountdown(lockedForSeconds)}.`
+                      : error}
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={props.submitting || opening || secret.length === 0 || locked}
+                    className="mt-3 inline-flex min-w-[12rem] items-center justify-center gap-2 rounded-full bg-ink px-7 py-3 text-sm font-medium text-paper shadow-[0_10px_24px_-12px_rgb(58_44_34/0.9)] transition hover:bg-[#2a1f17] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#b98a3e] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {props.submitting || opening ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {opening ? "Album wird geöffnet" : "Wird geprüft"}
+                      </>
+                    ) : isPin ? (
+                      "Album öffnen"
+                    ) : (
+                      "Gerät freischalten"
+                    )}
+                  </button>
+                </>
+              )}
+            </form>
+          </section>
+        </div>
       </div>
 
-      <footer className="relative z-10 pb-6 text-center text-[10px] uppercase tracking-[0.3em] text-ivory/35">
-        Privat · nur für Familie &amp; Freunde
+      <footer className="relative z-10 pb-6 text-center font-serif text-sm italic text-ivory/40">
+        Privat – nur für Familie und Freunde
       </footer>
     </main>
   );
