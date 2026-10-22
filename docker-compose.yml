@@ -13,7 +13,7 @@ services:
       # Namen des Brautpaars (erscheinen auf der PIN-Seite und in der Diashow)
       - COUPLE_NAMES=Tanja & Christopher
       # Datum der Hochzeit (Format: JJJJ-MM-TT) – für Datum und "verheiratet seit"-Zähler
-      - WEDDING_DATE=2024-05-12
+      - WEDDING_DATE=2026-09-22
       # Geheimer Code für den Bilderrahmen-Modus unter /rahmen (min. 8 Zeichen, unbedingt ändern!)
       - FRAME_TOKEN=change-me-12345
       # Optional: Benachrichtigung bei gesperrten PIN-Versuchen über ntfy.sh
