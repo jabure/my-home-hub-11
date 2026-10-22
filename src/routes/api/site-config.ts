@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/site-config")({
           {
             headers: {
               "content-type": "application/json",
-              "cache-control": "public, max-age=3600",
+              "cache-control": "no-cache",
             },
           },
         );
