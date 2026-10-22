@@ -1,4 +1,4 @@
-# Docker-Anleitung für Familienmomente Landingpage
+# Docker-Anleitung für das Hochzeitsalbum
 
 ## Voraussetzungen
 
@@ -21,6 +21,7 @@ docker build -t familienmomente .
 docker run -d -p 3000:3000 \
   -e GALLERY_DIR=/data/gallery \
   -e GALLERY_PIN=1234 \
+  -e COUPLE_NAMES="Tanja & Christopher" \
   -v ./gallery-images:/data/gallery \
   --name familienmomente familienmomente
 ```
@@ -70,15 +71,16 @@ In der Musik-Leiste oben rechts gibt es: den **aktuellen Titelnamen** (aus dem D
 
 **Wichtig:** Ihr müsst selbst eine Musikdatei bereitstellen, für die ihr die Rechte habt (eigene Aufnahme oder lizenzfreie Musik) – es wird keine Musik automatisch generiert oder mitgeliefert.
 
-## Wetter-Standort anpassen
+## Startseite & Namen
 
-Standardmäßig zeigt das Wetter-Widget Wels, Oberösterreich. Zum Ändern in `docker-compose.yml`:
+Die Website besteht nur noch aus dem Hochzeitsalbum: Wer die Adresse öffnet, sieht eine PIN-Seite mit euren Namen, dem Hochzeitsdatum und dem „verheiratet seit"-Zähler – nach Eingabe der PIN öffnet sich direkt die Diashow.
+
+Namen und Datum werden in der `docker-compose.yml` gesetzt:
 
 ```yaml
 environment:
-  - WEATHER_LAT=48.2082
-  - WEATHER_LON=16.3738
-  - WEATHER_LOCATION_NAME=Wien
+  - COUPLE_NAMES=Tanja & Christopher
+  - WEDDING_DATE=2024-05-12
 ```
 
 ## Health-Check
@@ -105,14 +107,14 @@ ports:
 - Die App wird mit dem **Nitro `node-server` Preset** gebaut (für reine Node.js-Umgebungen)
 - SSR (Server-Side Rendering) ist aktiviert
 - Bilder werden zur Laufzeit aus dem gemounteten Ordner `gallery-images` gelesen, nicht ins Image eingebaut
-- Hero-Bilder sind als WebP eingebettet (deutlich kleiner als die ursprünglichen JPGs, schnellere Ladezeit)
+- Das Hintergrundbild der PIN-Seite ist als WebP eingebettet (`src/assets/hero-1.webp`)
 
 ## Dateien
 
 | Datei | Zweck |
 |-------|-------|
 | `Dockerfile` | Multi-Stage Build (Bun Builder → Node Runner) inkl. Healthcheck |
-| `docker-compose.yml` | Docker Compose Konfiguration inkl. Galerie-Ordner, PIN, Wetter-Standort, Healthcheck |
+| `docker-compose.yml` | Docker Compose Konfiguration inkl. Galerie-Ordner, PIN, Namen, Hochzeitsdatum, Healthcheck |
 | `.dockerignore` | Ausschluss unnötiger Dateien vom Build |
 | `gallery-images/` | Ordner am Host, in den Fotos für die Galerie gelegt werden (optional mit `captions.json` und einer Musikdatei) |
 
@@ -120,7 +122,7 @@ ports:
 
 ## Gästefotos (eigenes Album)
 
-In der Bilder-Übersicht (Raster-Symbol) gibt es einen Abschnitt „Gästefotos" mit einem Upload-Button. Jeder mit der normalen Galerie-PIN kann dort eigene Fotos/Videos hochladen (max. 20 Dateien, je max. 50 MB).
+In der Übersicht „Alle Fotos" (Raster-Symbol) gibt es einen Abschnitt „Gästefotos" mit einem Upload-Button. Gästefotos und Videos öffnen sich per Klick in einer Einzelansicht, in der man (auch per Wischen) blättern kann. Jeder mit der normalen Galerie-PIN kann dort eigene Fotos/Videos hochladen (max. 20 Dateien, je max. 50 MB).
 
 - Gästefotos landen in einem **eigenen Unterordner** (`gallery-images/gaeste/`) und laufen **nicht** automatisch in der Haupt-Diashow mit — sie erscheinen ausschließlich im eigenen Abschnitt der Übersicht.
 - So bleibt die kuratierte Haupt-Diashow unangetastet, während trotzdem alle Gästefotos gesammelt werden.
@@ -138,4 +140,4 @@ Der Rahmen-Modus nutzt denselben Fehlversuch-Schutz (Sperre/Bann) wie die normal
 
 ## "Verheiratet seit"-Zähler
 
-Auf der Startseite erscheint automatisch ein kleiner Zähler, sobald `WEDDING_DATE` gesetzt ist (Format `JJJJ-MM-TT` in der `docker-compose.yml`). Ohne gesetztes Datum wird nichts angezeigt.
+Auf der PIN-Seite erscheinen automatisch das Hochzeitsdatum und ein kleiner Zähler, sobald `WEDDING_DATE` gesetzt ist (Format `JJJJ-MM-TT` in der `docker-compose.yml`). Ohne gesetztes Datum wird beides nicht angezeigt.

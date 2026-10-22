@@ -19,7 +19,6 @@ import { Route as ApiGalleryMusicRouteImport } from './routes/api/gallery-music'
 import { Route as ApiGalleryUploadRouteImport } from './routes/api/gallery-upload'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiSiteConfigRouteImport } from './routes/api/site-config'
-import { Route as ApiWeatherConfigRouteImport } from './routes/api/weather-config'
 import { Route as ApiGalleryGuestFilenameRouteImport } from './routes/api/gallery-guest/$filename'
 import { Route as ApiGalleryFilenameRouteImport } from './routes/api/gallery/$filename'
 
@@ -73,11 +72,6 @@ const ApiSiteConfigRoute = ApiSiteConfigRouteImport.update({
   path: '/api/site-config',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiWeatherConfigRoute = ApiWeatherConfigRouteImport.update({
-  id: '/api/weather-config',
-  path: '/api/weather-config',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiGalleryGuestFilenameRoute = ApiGalleryGuestFilenameRouteImport.update({
   id: '/api/gallery-guest/$filename',
   path: '/api/gallery-guest/$filename',
@@ -100,7 +94,6 @@ export interface FileRoutesByFullPath {
   '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-config': typeof ApiSiteConfigRoute
-  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
@@ -115,7 +108,6 @@ export interface FileRoutesByTo {
   '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-config': typeof ApiSiteConfigRoute
-  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
@@ -131,7 +123,6 @@ export interface FileRoutesById {
   '/api/gallery-upload': typeof ApiGalleryUploadRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-config': typeof ApiSiteConfigRoute
-  '/api/weather-config': typeof ApiWeatherConfigRoute
   '/api/gallery-guest/$filename': typeof ApiGalleryGuestFilenameRoute
   '/api/gallery/$filename': typeof ApiGalleryFilenameRoute
 }
@@ -148,7 +139,6 @@ export interface FileRouteTypes {
     | '/api/gallery-upload'
     | '/api/health'
     | '/api/site-config'
-    | '/api/weather-config'
     | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   fileRoutesByTo: FileRoutesByTo
@@ -163,7 +153,6 @@ export interface FileRouteTypes {
     | '/api/gallery-upload'
     | '/api/health'
     | '/api/site-config'
-    | '/api/weather-config'
     | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   id:
@@ -178,7 +167,6 @@ export interface FileRouteTypes {
     | '/api/gallery-upload'
     | '/api/health'
     | '/api/site-config'
-    | '/api/weather-config'
     | '/api/gallery-guest/$filename'
     | '/api/gallery/$filename'
   fileRoutesById: FileRoutesById
@@ -194,7 +182,6 @@ export interface RootRouteChildren {
   ApiGalleryUploadRoute: typeof ApiGalleryUploadRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiSiteConfigRoute: typeof ApiSiteConfigRoute
-  ApiWeatherConfigRoute: typeof ApiWeatherConfigRoute
   ApiGalleryGuestFilenameRoute: typeof ApiGalleryGuestFilenameRoute
 }
 
@@ -270,13 +257,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSiteConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/weather-config': {
-      id: '/api/weather-config'
-      path: '/api/weather-config'
-      fullPath: '/api/weather-config'
-      preLoaderRoute: typeof ApiWeatherConfigRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/gallery-guest/$filename': {
       id: '/api/gallery-guest/$filename'
       path: '/api/gallery-guest/$filename'
@@ -317,7 +297,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGalleryUploadRoute: ApiGalleryUploadRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiSiteConfigRoute: ApiSiteConfigRoute,
-  ApiWeatherConfigRoute: ApiWeatherConfigRoute,
   ApiGalleryGuestFilenameRoute: ApiGalleryGuestFilenameRoute,
 }
 export const routeTree = rootRouteImport

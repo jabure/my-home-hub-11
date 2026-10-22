@@ -40,9 +40,7 @@ export function mimeTypeFor(filename: string): string {
 export function titleFromFilename(filename: string): string {
   const base = filename.slice(0, filename.length - path.extname(filename).length);
   const withoutIndex = base.replace(/^\d+[-_.\s]*/, "");
-  const cleaned = (withoutIndex.length > 0 ? withoutIndex : base)
-    .replace(/[-_]+/g, " ")
-    .trim();
+  const cleaned = (withoutIndex.length > 0 ? withoutIndex : base).replace(/[-_]+/g, " ").trim();
   const words = cleaned.length > 0 ? cleaned : base;
   return words
     .split(" ")
@@ -64,7 +62,9 @@ export async function readCaptionsFile(): Promise<CaptionsFile> {
     const raw = await readFile(path.join(GALLERY_DIR, "captions.json"), "utf-8");
     const parsed = JSON.parse(raw);
     return {
-      order: Array.isArray(parsed.order) ? parsed.order.filter((x: unknown) => typeof x === "string") : undefined,
+      order: Array.isArray(parsed.order)
+        ? parsed.order.filter((x: unknown) => typeof x === "string")
+        : undefined,
       captions:
         parsed.captions && typeof parsed.captions === "object" ? parsed.captions : undefined,
     };
@@ -153,13 +153,10 @@ export function clearAttempts(key: string): void {
   attempts.delete(key);
 }
 
-// --- Wetter-Standort (per Umgebungsvariable überschreibbar) ---
-export function getWeatherConfig() {
-  return {
-    lat: Number(process.env.WEATHER_LAT ?? "48.1667"),
-    lon: Number(process.env.WEATHER_LON ?? "14.0333"),
-    name: process.env.WEATHER_LOCATION_NAME ?? "Wels",
-  };
+// --- Namen des Brautpaars (COUPLE_NAMES env), erscheinen auf PIN-Seite und in der Diashow ---
+export function getCoupleNames(): string {
+  const raw = process.env.COUPLE_NAMES?.trim();
+  return raw && raw.length > 0 ? raw : "Tanja & Christopher";
 }
 
 // --- Optionale Hintergrundmusik ---

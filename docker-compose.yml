@@ -10,11 +10,9 @@ services:
       - GALLERY_DIR=/data/gallery
       # PIN, mit der die Galerie entsperrt wird (bitte anpassen!)
       - GALLERY_PIN=1234
-      # Standort für das Wetter-Widget (Standard: Wels, Oberösterreich)
-      - WEATHER_LAT=48.1667
-      - WEATHER_LON=14.0333
-      - WEATHER_LOCATION_NAME=Wels
-      # Datum der Hochzeit für den "Verheiratet seit"-Zähler (Format: JJJJ-MM-TT)
+      # Namen des Brautpaars (erscheinen auf der PIN-Seite und in der Diashow)
+      - COUPLE_NAMES=Tanja & Christopher
+      # Datum der Hochzeit (Format: JJJJ-MM-TT) – für Datum und "verheiratet seit"-Zähler
       - WEDDING_DATE=2024-05-12
       # Geheimer Code für den Bilderrahmen-Modus unter /rahmen (min. 8 Zeichen, unbedingt ändern!)
       - FRAME_TOKEN=change-me-12345

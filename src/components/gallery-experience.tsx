@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Heart,
   X,
@@ -18,6 +18,8 @@ import {
   Loader2,
   Maximize,
   Minimize,
+  LogOut,
+  Check,
 } from "lucide-react";
 
 export type GalleryItem = {
@@ -46,115 +48,46 @@ export function protectedImgProps() {
   };
 }
 
-function useGalleryAccess() {
-  const [status, setStatus] = useState<"checking" | "locked" | "unlocked">("checking");
-  const [items, setItems] = useState<GalleryItem[]>([]);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-  const [lockedForSeconds, setLockedForSeconds] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [rememberedHint, setRememberedHint] = useState(false);
-  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+const SLIDE_DURATION_MS = 7000;
+const SWIPE_THRESHOLD_PX = 50;
 
-  const loadGallery = useCallback(async (isInitialCheck = false) => {
-    try {
-      const res = await fetch("/api/gallery");
-      if (res.status === 401) {
-        setStatus("locked");
-        return;
-      }
-      const data = await res.json();
-      setItems(data.items ?? []);
-      setMusicTracks(data.musicTracks ?? []);
-      setStatus("unlocked");
-      // War schon beim allerersten Laden entsperrt -> Cookie war noch gültig
-      if (isInitialCheck) {
-        setRememberedHint(true);
-        window.setTimeout(() => setRememberedHint(false), 4000);
-      }
-    } catch {
-      setStatus("locked");
-    }
-  }, []);
+// Einheitliche Optik für die runden Bedienknöpfe
+const ICON_BTN =
+  "grid h-10 w-10 place-items-center rounded-full bg-white/10 text-ivory ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-gold";
 
-  useEffect(() => {
-    loadGallery(true);
-  }, [loadGallery]);
-
-  // Countdown für die Sperre nach zu vielen Fehlversuchen
-  useEffect(() => {
-    if (lockedForSeconds <= 0) return;
-    const id = window.setInterval(() => {
-      setLockedForSeconds((s) => Math.max(0, s - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [lockedForSeconds]);
-
-  const submitPin = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setSubmitting(true);
-      setPinError(false);
-      try {
-        const res = await fetch("/api/gallery-auth", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ pin }),
-        });
-        if (res.status === 429) {
-          const data = await res.json().catch(() => ({}));
-          setLockedForSeconds(data.lockedForSeconds ?? 60);
-          setSubmitting(false);
-          return;
-        }
-        if (!res.ok) {
-          setPinError(true);
-          setSubmitting(false);
-          return;
-        }
-        setPin("");
-        await loadGallery(false);
-      } catch {
-        setPinError(true);
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [pin, loadGallery],
-  );
-
-  const exitGallery = useCallback(async () => {
-    try {
-      await fetch("/api/gallery-logout", { method: "POST" });
-    } catch {
-      // Egal, wir setzen den Zustand clientseitig trotzdem zurück
-    }
-    setItems([]);
-    setStatus("locked");
-  }, []);
-
-  return {
-    status,
-    items,
-    pin,
-    setPin,
-    pinError,
-    setPinError,
-    lockedForSeconds,
-    submitting,
-    submitPin,
-    rememberedHint,
-    musicTracks,
-    exitGallery,
-  };
+function formatDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("de-AT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
-const SLIDE_DURATION_MS = 7000;
+function CoupleNames({ names }: { names: string }) {
+  const parts = names.split(/\s*&\s*/);
+  if (parts.length !== 2) return <>{names}</>;
+  return (
+    <>
+      {parts[0]}
+      <span className="mx-[0.18em] not-italic text-gold">&amp;</span>
+      {parts[1]}
+    </>
+  );
+}
+
+// Einzelansicht (Lightbox) für Videos und Gästefotos, mit Blättern innerhalb der Liste
+type Viewer = { list: GalleryItem[]; index: number };
 
 export function GalleryExperience({
   items,
   rememberedHint,
   musicTracks,
+  coupleNames = "Tanja & Christopher",
+  weddingDate = null,
   onExit,
   onRefresh,
   frameMode = false,
@@ -162,6 +95,8 @@ export function GalleryExperience({
   items: GalleryItem[];
   rememberedHint: boolean;
   musicTracks: MusicTrack[];
+  coupleNames?: string;
+  weddingDate?: string | null;
   onExit: () => void;
   onRefresh?: () => void;
   frameMode?: boolean;
@@ -170,6 +105,7 @@ export function GalleryExperience({
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(frameMode);
   const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const fadeRafRef = useRef<number | null>(null);
   const [volume, setVolume] = useState(0.25);
   const [trackIndex, setTrackIndex] = useState(0);
@@ -177,10 +113,59 @@ export function GalleryExperience({
   const [showOverview, setShowOverview] = useState(false);
   const [audioFailed, setAudioFailed] = useState(false);
   const [musicBlocked, setMusicBlocked] = useState(false);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const filmstripRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const failedTracksRef = useRef(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // --- Listen ---
+  // Gästefotos laufen nicht automatisch in der Diashow mit - eigenes Album, eigener Abschnitt.
+  // Videos laufen ebenfalls nicht automatisch - nur Bilder rotieren in der Diashow.
+  const mainItems = useMemo(() => items.filter((item) => item.album !== "gaeste"), [items]);
+  const slideshowItems = useMemo(
+    () => mainItems.filter((item) => item.type === "image"),
+    [mainItems],
+  );
+  const mainVideos = useMemo(() => mainItems.filter((item) => item.type === "video"), [mainItems]);
+  const guestItems = useMemo(() => items.filter((item) => item.album === "gaeste"), [items]);
+
+  const slideCount = slideshowItems.length;
+  const hasSlideshow = slideCount > 0;
+  const current = slideshowItems[index] ?? slideshowItems[0];
+  const viewing = viewer ? viewer.list[viewer.index] : null;
+  const viewerOpen = viewing != null;
+  const videoOpen = viewing?.type === "video";
+  const dateLabel = formatDate(weddingDate);
+
+  // Index gültig halten, falls sich die Liste ändert (z. B. nach Neuladen)
+  useEffect(() => {
+    if (index >= slideCount && slideCount > 0) setIndex(0);
+  }, [index, slideCount]);
+
+  const next = useCallback(() => {
+    setIndex((i) => (slideCount > 0 ? (i + 1) % slideCount : 0));
+  }, [slideCount]);
+  const prev = useCallback(() => {
+    setIndex((i) => (slideCount > 0 ? (i - 1 + slideCount) % slideCount : 0));
+  }, [slideCount]);
+
+  const openViewer = useCallback((list: GalleryItem[], item: GalleryItem) => {
+    const i = list.findIndex((x) => x.src === item.src);
+    setViewer({ list, index: Math.max(0, i) });
+    setShowOverview(false);
+  }, []);
+  const closeViewer = useCallback(() => setViewer(null), []);
+  const stepViewer = useCallback((dir: 1 | -1) => {
+    setViewer((v) =>
+      v && v.list.length > 1 ? { ...v, index: (v.index + dir + v.list.length) % v.list.length } : v,
+    );
+  }, []);
+
+  // --- Vollbild ---
   useEffect(() => {
     const onChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
     document.addEventListener("fullscreenchange", onChange);
@@ -223,58 +208,46 @@ export function GalleryExperience({
     };
   }, [isFullscreen]);
 
-  // Übersicht und Video-Ansicht haben eigene Bedienelemente -> Kopfzeile dafür nicht ausblenden
-  const failedTracksRef = useRef(0);
-  const hasMusic = musicTracks.length > 0 && !audioFailed;
-  const currentTrack = musicTracks[trackIndex] ?? null;
+  // Übersicht und Einzelansicht haben eigene Bedienelemente -> Kopfzeile dafür nicht ausblenden
+  const showChrome = chromeVisible || showOverview || viewerOpen;
 
-  const nextTrack = useCallback(() => {
-    if (musicTracks.length <= 1) return;
-    setTrackIndex((i) => (i + 1) % musicTracks.length);
-  }, [musicTracks.length]);
-
-  const slideshowLength = items.filter((item) => item.album !== "gaeste").length;
-  const next = useCallback(() => {
-    setIndex((i) => (slideshowLength > 0 ? (i + 1) % slideshowLength : 0));
-  }, [slideshowLength]);
-  const prev = useCallback(() => {
-    setIndex((i) => (slideshowLength > 0 ? (i - 1 + slideshowLength) % slideshowLength : 0));
-  }, [slideshowLength]);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  // Gästefotos laufen nicht automatisch in der Diashow mit - eigenes Album, eigener Abschnitt
-  const mainItems = items.filter((item) => item.album !== "gaeste");
-  // Videos laufen NICHT automatisch in der Diashow - nur Bilder rotieren automatisch;
-  // ein Video wird ausschließlich per Klick geöffnet (siehe viewingVideo unten).
-  const slideshowItems = mainItems.filter((item) => item.type === "image");
-  const current = slideshowItems[index];
-  const hasSlideshow = slideshowItems.length > 0;
-
-  const [viewingVideo, setViewingVideo] = useState<GalleryItem | null>(null);
-  const videoOpen = viewingVideo !== null;
-  // Übersicht und Video-Ansicht haben eigene Bedienelemente -> Kopfzeile dafür nicht ausblenden
-  const showChrome = chromeVisible || showOverview || videoOpen;
-
-  // Diashow läuft automatisch durch - pausiert, solange ein Video per Klick geöffnet ist
+  // --- Diashow läuft automatisch durch (pausiert, solange Übersicht oder Einzelansicht offen ist) ---
   useEffect(() => {
-    if (!playing || slideshowItems.length <= 1 || videoOpen) return;
+    if (!playing || slideCount <= 1 || viewerOpen || showOverview) return;
     const id = window.setInterval(next, SLIDE_DURATION_MS);
     return () => window.clearInterval(id);
-  }, [playing, next, slideshowItems.length, videoOpen]);
+  }, [playing, next, slideCount, viewerOpen, showOverview]);
 
-  // Angeklicktes Video: von vorn starten und abspielen
+  // Geöffnetes Video: von vorn starten und abspielen
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !viewingVideo) return;
+    if (!video || !videoOpen) return;
     video.currentTime = 0;
     video.play().catch(() => {});
-  }, [viewingVideo]);
+  }, [viewing, videoOpen]);
 
-  // Tastatursteuerung
+  // Aktives Vorschaubild im Filmstreifen in die Mitte scrollen
+  useEffect(() => {
+    const strip = filmstripRef.current;
+    if (!strip || !current) return;
+    const el = strip.querySelector<HTMLElement>(`[data-src="${CSS.escape(current.src)}"]`);
+    if (!el) return;
+    const target = el.offsetLeft - strip.clientWidth / 2 + el.clientWidth / 2;
+    strip.scrollTo({ left: target, behavior: "smooth" });
+  }, [current]);
+
+  // --- Tastatursteuerung ---
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (videoOpen) {
-        if (e.key === "Escape") setViewingVideo(null);
+      if (e.target instanceof HTMLInputElement) return;
+      if (viewerOpen) {
+        if (e.key === "Escape") closeViewer();
+        else if (e.key === "ArrowRight") stepViewer(1);
+        else if (e.key === "ArrowLeft") stepViewer(-1);
+        return;
+      }
+      if (showOverview) {
+        if (e.key === "Escape") setShowOverview(false);
         return;
       }
       if (e.key === "ArrowRight") next();
@@ -282,14 +255,39 @@ export function GalleryExperience({
       else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
-      } else if (e.key === "Escape") {
-        if (showOverview) setShowOverview(false);
-        else onExit();
+      } else if (e.key === "Escape" && !document.fullscreenElement && !frameMode) {
+        onExit();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, onExit, showOverview, videoOpen]);
+  }, [next, prev, onExit, showOverview, viewerOpen, closeViewer, stepViewer, frameMode]);
+
+  // --- Wischgesten (Handy/Tablet) ---
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (onLeft: () => void, onRight: () => void) => (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) onLeft();
+    else onRight();
+  };
+
+  // --- Hintergrundmusik ---
+  const hasMusic = musicTracks.length > 0 && !audioFailed;
+  const currentTrack = musicTracks[trackIndex] ?? null;
+
+  const nextTrack = useCallback(() => {
+    if (musicTracks.length <= 1) return;
+    setTrackIndex((i) => (i + 1) % musicTracks.length);
+  }, [musicTracks.length]);
 
   // Sanftes Ein-/Ausblenden der Musik (statt hartem Stopp beim Video)
   const fadeTo = useCallback((target: number, onDone?: () => void) => {
@@ -319,7 +317,7 @@ export function GalleryExperience({
     [],
   );
 
-  // Hintergrundmusik: spielt automatisch, blendet bei Videos sanft aus und danach wieder ein
+  // Spielt automatisch, blendet bei Videos sanft aus und danach wieder ein
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !hasMusic) return;
@@ -339,6 +337,7 @@ export function GalleryExperience({
         // Browser blockiert Autoplay ohne Nutzer-Geste -> Hinweis zeigen
         setMusicBlocked(true);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMusic, videoOpen, playing, trackIndex, fadeTo]);
 
   useEffect(() => {
@@ -355,6 +354,12 @@ export function GalleryExperience({
       .catch(() => {});
   }, []);
 
+  // --- Gäste-Upload mit Rückmeldung ---
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 4500);
+  }, []);
+
   const handleUpload = useCallback(
     async (fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return;
@@ -363,36 +368,59 @@ export function GalleryExperience({
         const form = new FormData();
         for (const file of Array.from(fileList)) form.append("files", file);
         const res = await fetch("/api/gallery-upload", { method: "POST", body: form });
-        if (res.ok) onRefresh?.();
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          const saved = Number(data.saved ?? 0);
+          const rejected: string[] = Array.isArray(data.rejected) ? data.rejected : [];
+          showToast(
+            saved > 0
+              ? `Danke! ${saved} ${saved === 1 ? "Datei" : "Dateien"} hochgeladen${
+                  rejected.length > 0 ? ` – ${rejected.length} übersprungen` : ""
+                }.`
+              : "Keine passende Datei dabei (Fotos/Videos bis 50 MB).",
+          );
+          onRefresh?.();
+        } else {
+          showToast("Upload hat nicht geklappt. Bitte nochmal versuchen.");
+        }
       } catch {
-        // Upload fehlgeschlagen -> keine Änderung
+        showToast("Upload hat nicht geklappt. Bitte nochmal versuchen.");
       } finally {
         setUploading(false);
       }
     },
-    [onRefresh],
+    [onRefresh, showToast],
   );
 
+  // --- Leerer Zustand ---
   if (items.length === 0) {
     return (
-      <div className="wedding-stage fixed inset-0 z-40 flex flex-col items-center justify-center gap-4 px-4 text-center text-[oklch(0.96_0.01_80)]">
-        <ImageOff className="h-10 w-10 opacity-50" />
-        <p className="text-sm opacity-70">Noch keine Bilder im Galerie-Ordner am Server.</p>
-        <button
-          type="button"
-          onClick={onExit}
-          className="mt-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium ring-1 ring-white/20 transition hover:bg-white/20"
-        >
-          Zur Startseite
-        </button>
+      <div className="wedding-stage fixed inset-0 z-40 flex flex-col items-center justify-center gap-4 px-6 text-center text-ivory">
+        <ImageOff className="h-10 w-10 text-gold/70" />
+        <p className="wedding-caption text-2xl">Hier entstehen bald unsere Erinnerungen</p>
+        <p className="max-w-sm text-sm text-ivory/55">
+          Im Galerie-Ordner am Server liegen noch keine Fotos oder Videos.
+        </p>
+        {!frameMode && (
+          <button
+            type="button"
+            onClick={onExit}
+            className="mt-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium ring-1 ring-white/20 transition hover:bg-white/20"
+          >
+            Abmelden
+          </button>
+        )}
       </div>
     );
   }
 
+  const fade = (visible: boolean) =>
+    `transition-opacity duration-500 ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`;
+
   return (
     <div
       ref={containerRef}
-      className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden"
+      className="wedding-stage fixed inset-0 z-40 flex flex-col overflow-hidden text-ivory"
     >
       {hasMusic && (
         <audio
@@ -413,60 +441,67 @@ export function GalleryExperience({
       )}
 
       {/* Weich verschwommener Foto-Hintergrund (nur das aktive Bild, für flüssiges Rendering) */}
-      {current?.type === "image" && (
+      {current && (
         <img
           key={`bg-${current.src}`}
           src={sizedSrc(current.src, "thumb")}
           alt=""
           aria-hidden="true"
           decoding="async"
-          className="absolute inset-0 h-full w-full scale-105 object-cover opacity-40 blur-xl animate-fade-in"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-2xl animate-fade-in"
           {...protectedImgProps()}
         />
       )}
       {/* Warmer Champagner-Schleier + Vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[oklch(0.24_0.02_50)]/60" />
+      <div className="pointer-events-none absolute inset-0 bg-[oklch(0.22_0.02_50)]/60" />
       <div className="pointer-events-none absolute inset-0 wedding-vignette" />
 
       {/* Fortschrittsbalken bis zum nächsten Bild */}
-      {playing && !videoOpen && slideshowItems.length > 1 && (
+      {playing && !viewerOpen && !showOverview && slideCount > 1 && (
         <div
-          className={`absolute left-0 right-0 top-0 z-10 h-[3px] bg-white/10 transition-opacity duration-500 ${
-            showChrome ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute left-0 right-0 top-0 z-30 h-[2px] bg-white/10 ${fade(showChrome)}`}
         >
           <div
             key={index}
-            className="h-full bg-gradient-to-r from-[oklch(0.85_0.09_85)] to-[oklch(0.78_0.1_50)]"
+            className="h-full bg-gradient-to-r from-gold to-[oklch(0.78_0.1_50)]"
             style={{ animation: `gallery-progress ${SLIDE_DURATION_MS}ms linear forwards` }}
           />
         </div>
       )}
 
       {/* Kopfzeile */}
-      <div
-        className={`relative z-30 flex items-center justify-between gap-3 px-4 pt-5 transition-opacity duration-500 sm:px-8 ${
-          showChrome ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
+      <header
+        className={`relative z-30 flex items-center justify-between gap-3 px-4 pt-4 sm:px-8 sm:pt-6 ${fade(showChrome)}`}
       >
-        {frameMode ? (
-          <span />
-        ) : (
-          <button
-            type="button"
-            onClick={onExit}
-            className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
-          >
-            <X className="h-3.5 w-3.5" /> Verlassen
-          </button>
-        )}
+        <div className="flex min-w-0 items-center gap-3">
+          {!frameMode && (
+            <button
+              type="button"
+              onClick={onExit}
+              aria-label="Abmelden"
+              title="Abmelden"
+              className={ICON_BTN}
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
+          {/* Namen nur in der Übersicht, in der Diashow stehen sie schon unter dem Foto */}
+          <div className={`min-w-0 animate-fade-in ${showOverview ? "hidden sm:block" : "hidden"}`}>
+            <p className="truncate font-serif text-xl italic leading-tight">
+              <CoupleNames names={coupleNames} />
+            </p>
+            {dateLabel && (
+              <p className="text-[10px] uppercase tracking-[0.3em] text-ivory/45">{dateLabel}</p>
+            )}
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           {hasMusic && (
-            <div className="relative flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-3.5 pr-2 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md">
-              <Music className="h-3.5 w-3.5 shrink-0 text-[oklch(0.85_0.09_85)]" />
+            <div className="relative flex items-center gap-1.5 rounded-full bg-white/10 py-1 pl-3.5 pr-1 ring-1 ring-white/15 backdrop-blur-md">
+              <Music className="h-3.5 w-3.5 shrink-0 text-gold" />
               <span
-                className="hidden max-w-36 truncate text-xs sm:inline"
+                className="hidden max-w-36 truncate text-xs text-ivory/85 md:inline"
                 title={currentTrack?.title}
               >
                 {currentTrack?.title}
@@ -481,13 +516,13 @@ export function GalleryExperience({
                   setMuted(false);
                 }}
                 aria-label="Musik-Lautstärke"
-                className="hidden w-20 accent-[oklch(0.85_0.09_85)] sm:block"
+                className="mx-1 hidden w-20 accent-gold sm:block"
               />
               <button
                 type="button"
                 onClick={() => (musicBlocked ? startMusicManually() : setMuted((m) => !m))}
                 aria-label={musicBlocked ? "Musik starten" : muted ? "Musik an" : "Musik aus"}
-                className="grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20"
+                className="grid h-8 w-8 place-items-center rounded-full transition hover:bg-white/20"
               >
                 {musicBlocked || muted || volume === 0 ? (
                   <VolumeX className="h-4 w-4" />
@@ -501,7 +536,7 @@ export function GalleryExperience({
                     type="button"
                     onClick={nextTrack}
                     aria-label="Nächster Titel"
-                    className="grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20"
+                    className="hidden h-8 w-8 place-items-center rounded-full transition hover:bg-white/20 sm:grid"
                   >
                     <SkipForward className="h-4 w-4" />
                   </button>
@@ -509,14 +544,15 @@ export function GalleryExperience({
                     type="button"
                     onClick={() => setShowPlaylist((s) => !s)}
                     aria-label="Titelübersicht"
-                    className={`grid h-7 w-7 place-items-center rounded-full transition hover:bg-white/20 ${
+                    aria-expanded={showPlaylist}
+                    className={`grid h-8 w-8 place-items-center rounded-full transition hover:bg-white/20 ${
                       showPlaylist ? "bg-white/20" : ""
                     }`}
                   >
                     <ListMusic className="h-4 w-4" />
                   </button>
                   {showPlaylist && (
-                    <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl bg-[oklch(0.2_0.02_50)]/95 p-2 ring-1 ring-white/15 backdrop-blur-md">
+                    <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl bg-[oklch(0.2_0.02_50)]/95 p-2 ring-1 ring-white/15 backdrop-blur-md animate-fade-in">
                       <p className="px-3 pb-1.5 pt-1 text-[10px] uppercase tracking-[0.25em] text-white/40">
                         Titelübersicht
                       </p>
@@ -529,7 +565,7 @@ export function GalleryExperience({
                             setShowPlaylist(false);
                           }}
                           className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs transition hover:bg-white/10 ${
-                            i === trackIndex ? "text-[oklch(0.85_0.09_85)]" : "text-white/75"
+                            i === trackIndex ? "text-gold" : "text-white/75"
                           }`}
                         >
                           {i === trackIndex ? (
@@ -551,18 +587,19 @@ export function GalleryExperience({
           <button
             type="button"
             onClick={() => setShowOverview((s) => !s)}
-            aria-label="Bilderübersicht"
-            className={`grid h-9 w-9 place-items-center rounded-full ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20 ${
-              showOverview ? "bg-white/25 text-white" : "bg-white/10 text-[oklch(0.94_0.02_85)]"
-            }`}
+            aria-label="Alle Fotos"
+            title="Alle Fotos"
+            aria-pressed={showOverview}
+            className={`${ICON_BTN} ${showOverview ? "bg-white/25" : ""}`}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => setPlaying((p) => !p)}
-            aria-label={playing ? "Pause" : "Diashow starten"}
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
+            aria-label={playing ? "Diashow pausieren" : "Diashow starten"}
+            title={playing ? "Pause" : "Abspielen"}
+            className={ICON_BTN}
           >
             {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </button>
@@ -570,48 +607,51 @@ export function GalleryExperience({
             type="button"
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Vollbild verlassen" : "Vollbild"}
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
+            title={isFullscreen ? "Vollbild verlassen" : "Vollbild"}
+            className={`${ICON_BTN} hidden sm:grid`}
           >
             {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
         </div>
-      </div>
+      </header>
 
       {rememberedHint && !frameMode && (
-        <p className="relative z-10 mt-3 flex items-center justify-center gap-1.5 text-xs text-[oklch(0.9_0.02_85)]/60 animate-fade-in">
+        <p className="relative z-10 mt-3 flex items-center justify-center gap-1.5 text-xs text-ivory/55 animate-fade-in">
           <Lock className="h-3 w-3" /> Auf diesem Gerät gemerkt
         </p>
       )}
 
       {/* Bühne */}
-      <div className="relative z-10 flex flex-1 items-center justify-center overflow-hidden px-4 py-4 sm:px-12">
+      <div
+        className="relative z-10 flex flex-1 items-center justify-center overflow-hidden px-3 py-4 sm:px-16"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd(next, prev)}
+      >
         {!hasSlideshow && (
-          <div className="flex flex-col items-center gap-3 text-center text-white/60">
+          <div className="flex flex-col items-center gap-3 text-center text-ivory/60">
             <ImageOff className="h-8 w-8 opacity-50" />
-            <p className="text-sm">Noch keine Bilder im Hauptalbum.</p>
+            <p className="text-sm">Noch keine Fotos im Hauptalbum.</p>
           </div>
         )}
         {slideshowItems.map((item, i) => {
           // Nur Nachbarbilder im DOM halten - bei vielen Fotos sonst massiver Rendering-Aufwand
-          const distance = Math.min(
-            Math.abs(i - index),
-            slideshowItems.length - Math.abs(i - index),
-          );
+          const distance = Math.min(Math.abs(i - index), slideCount - Math.abs(i - index));
           if (distance > 1) return null;
           return (
             <figure
               key={item.src}
+              aria-hidden={i !== index}
               className={`absolute transition-opacity duration-[1600ms] ease-in-out ${
                 i === index ? "opacity-100" : "pointer-events-none opacity-0"
               }`}
             >
-              <div className="wedding-frame overflow-hidden rounded-[4px]">
+              <div className="wedding-frame overflow-hidden rounded-[3px]">
                 <img
                   src={sizedSrc(item.src, "display")}
                   alt={item.title}
                   loading="eager"
                   decoding="async"
-                  className="max-h-[62vh] w-auto max-w-[90vw] object-contain animate-ken-burns-inout sm:max-h-[66vh]"
+                  className="max-h-[60vh] w-auto max-w-[92vw] object-contain animate-ken-burns-inout sm:max-h-[64vh]"
                   {...protectedImgProps()}
                 />
               </div>
@@ -619,25 +659,21 @@ export function GalleryExperience({
           );
         })}
 
-        {!videoOpen && slideshowItems.length > 1 && (
+        {slideCount > 1 && (
           <>
             <button
               type="button"
               onClick={prev}
-              aria-label="Vorheriges Bild"
-              className={`absolute left-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition-opacity duration-500 hover:bg-white/25 sm:left-6 ${
-                showChrome ? "opacity-100" : "pointer-events-none opacity-0"
-              }`}
+              aria-label="Vorheriges Foto"
+              className={`absolute left-2 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-ivory ring-1 ring-white/15 backdrop-blur-md hover:bg-white/25 sm:left-6 sm:grid ${fade(showChrome)}`}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
               onClick={next}
-              aria-label="Nächstes Bild"
-              className={`absolute right-2 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-[oklch(0.94_0.02_85)] ring-1 ring-white/20 backdrop-blur-md transition-opacity duration-500 hover:bg-white/25 sm:right-6 ${
-                showChrome ? "opacity-100" : "pointer-events-none opacity-0"
-              }`}
+              aria-label="Nächstes Foto"
+              className={`absolute right-2 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-ivory ring-1 ring-white/15 backdrop-blur-md hover:bg-white/25 sm:right-6 sm:grid ${fade(showChrome)}`}
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -645,141 +681,140 @@ export function GalleryExperience({
         )}
       </div>
 
-      {/* Video-Ansicht: öffnet sich nur nach Klick, läuft nie automatisch in der Diashow mit */}
-      {viewingVideo && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => setViewingVideo(null)}
-            aria-label="Video schließen"
-            className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white/25 sm:right-8 sm:top-8"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <div className="wedding-frame overflow-hidden rounded-[4px]">
-            <video
-              ref={videoRef}
-              src={viewingVideo.src}
-              playsInline
-              preload="auto"
-              controls
-              controlsList="nodownload noremoteplayback"
-              onEnded={() => setViewingVideo(null)}
-              onContextMenu={(e) => e.preventDefault()}
-              className="max-h-[62vh] w-auto max-w-[90vw] object-contain sm:max-h-[66vh]"
-            />
-          </div>
-          <p className="wedding-caption mt-5 text-xl text-[oklch(0.96_0.015_85)]">
-            {viewingVideo.title}
-          </p>
-        </div>
-      )}
-
-      {/* Titel mit Herz-Ornament */}
+      {/* Bildunterschrift mit Herz-Ornament */}
       {hasSlideshow && (
-        <div
-          className={`relative z-10 px-4 text-center transition-opacity duration-500 sm:px-8 ${
-            showChrome ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <div className="mx-auto mb-2 flex items-center justify-center gap-3 text-[oklch(0.85_0.09_85)]">
-            <span className="h-px w-10 bg-gradient-to-r from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
-            <Heart className="h-3.5 w-3.5" fill="currentColor" />
-            <span className="h-px w-10 bg-gradient-to-l from-transparent to-[oklch(0.85_0.09_85)]/70 sm:w-16" />
+        <div className={`relative z-10 px-4 text-center sm:px-8 ${fade(showChrome)}`}>
+          <div className="mx-auto mb-2 flex items-center justify-center gap-3 text-gold">
+            <span className="h-px w-10 bg-gradient-to-r from-transparent to-gold/70 sm:w-16" />
+            <Heart className="h-3 w-3" fill="currentColor" />
+            <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold/70 sm:w-16" />
           </div>
-          <p className="wedding-caption text-2xl text-[oklch(0.96_0.015_85)] sm:text-3xl">
-            Hochzeit Tanja &amp; Christopher
+          <p className="wedding-caption text-2xl sm:text-3xl">
+            <CoupleNames names={coupleNames} />
           </p>
-          <p className="mt-1.5 text-[10px] uppercase tracking-[0.35em] text-[oklch(0.88_0.03_85)]/50">
-            {index + 1} · {slideshowItems.length}
+          <p className="mt-1.5 text-[10px] uppercase tracking-[0.35em] text-ivory/45">
+            {dateLabel ? `${dateLabel} · ` : ""}
+            <span className="tabular-nums">
+              {index + 1} / {slideCount}
+            </span>
           </p>
         </div>
       )}
 
-      {/* Übersicht: alle Bilder als Raster, Videos als eigener Abschnitt */}
-      {showOverview && (
-        <div className="absolute inset-0 z-20 overflow-y-auto bg-[oklch(0.16_0.015_40)]/95 backdrop-blur-md">
-          <div className="mx-auto max-w-5xl px-4 pb-12 pt-24 sm:px-8">
-            <p className="mb-3 text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
-              Bilder
-            </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
-              {slideshowItems.map((item, i) => (
-                <button
-                  type="button"
-                  key={item.src}
-                  onClick={() => {
-                    setIndex(i);
-                    setShowOverview(false);
-                  }}
-                  aria-label={`Bild anzeigen: ${item.title}`}
-                  className={`group aspect-square overflow-hidden rounded-xl border transition hover:-translate-y-0.5 ${
-                    i === index
-                      ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
-                      : "border-white/10 hover:border-white/30"
-                  }`}
-                >
+      {/* Filmstreifen */}
+      {mainItems.length > 1 && (
+        <div
+          ref={filmstripRef}
+          className={`thin-scrollbar relative z-10 mt-4 flex gap-2 overflow-x-auto scroll-px-4 px-4 pb-5 pt-1 sm:px-8 ${
+            mainItems.length <= 12 ? "sm:justify-center" : ""
+          } ${fade(showChrome)}`}
+        >
+          {mainItems.map((item) => {
+            const active = item.type === "image" && current?.src === item.src;
+            return (
+              <button
+                type="button"
+                key={item.src}
+                data-src={item.src}
+                onClick={() => {
+                  if (item.type === "video") {
+                    openViewer(mainVideos, item);
+                  } else {
+                    const imgIndex = slideshowItems.findIndex((s) => s.src === item.src);
+                    if (imgIndex >= 0) setIndex(imgIndex);
+                  }
+                }}
+                aria-label={item.type === "video" ? `Video abspielen: ${item.title}` : item.title}
+                aria-current={active ? "true" : undefined}
+                className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg transition sm:h-16 sm:w-16 ${
+                  active
+                    ? "opacity-100 ring-2 ring-gold shadow-[0_0_18px_-4px_var(--gold)]"
+                    : "opacity-45 ring-1 ring-white/15 hover:opacity-85"
+                }`}
+              >
+                {item.type === "video" ? (
+                  <VideoThumb src={item.src} small />
+                ) : (
                   <img
                     src={sizedSrc(item.src, "thumb")}
-                    alt={item.title}
+                    alt=""
                     loading="lazy"
                     decoding="async"
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                     {...protectedImgProps()}
                   />
-                </button>
-              ))}
-            </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {mainItems.length <= 1 && <div className="h-6" />}
 
-            {mainItems.some((item) => item.type === "video") && (
+      {/* Übersicht: alle Fotos als Raster, Videos und Gästefotos als eigene Abschnitte */}
+      {showOverview && (
+        <div className="absolute inset-0 z-20 overflow-y-auto bg-[oklch(0.15_0.015_40)]/96 backdrop-blur-md animate-fade-in">
+          <div className="mx-auto max-w-6xl px-4 pb-16 pt-24 sm:px-8">
+            <OverviewHeading title="Fotos" count={slideCount} />
+            {hasSlideshow ? (
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2.5 lg:grid-cols-6">
+                {slideshowItems.map((item, i) => (
+                  <button
+                    type="button"
+                    key={item.src}
+                    onClick={() => {
+                      setIndex(i);
+                      setShowOverview(false);
+                    }}
+                    aria-label={`Foto anzeigen: ${item.title}`}
+                    className={`group aspect-square overflow-hidden rounded-lg transition ${
+                      i === index ? "ring-2 ring-gold" : "ring-1 ring-white/10 hover:ring-white/35"
+                    }`}
+                  >
+                    <img
+                      src={sizedSrc(item.src, "thumb")}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      {...protectedImgProps()}
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-ivory/45">Noch keine Fotos im Hauptalbum.</p>
+            )}
+
+            {mainVideos.length > 0 && (
               <>
-                <p className="mb-3 mt-10 text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
-                  Videos
-                </p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {mainItems
-                    .filter((item) => item.type === "video")
-                    .map((item) => (
-                      <button
-                        type="button"
-                        key={item.src}
-                        onClick={() => {
-                          setViewingVideo(item);
-                          setShowOverview(false);
-                        }}
-                        aria-label={`Video abspielen: ${item.title}`}
-                        className="group overflow-hidden rounded-xl border border-white/10 text-left transition hover:-translate-y-0.5 hover:border-white/30"
-                      >
-                        <span className="relative block aspect-video bg-black/40">
-                          <video
-                            src={`${item.src}#t=0.1`}
-                            preload="metadata"
-                            muted
-                            playsInline
-                            className="h-full w-full object-cover"
-                          />
-                          <span className="absolute inset-0 grid place-items-center bg-black/30 transition group-hover:bg-black/15">
-                            <span className="grid h-10 w-10 place-items-center rounded-full bg-white/90">
-                              <Play className="ml-0.5 h-4 w-4 text-black" fill="currentColor" />
-                            </span>
-                          </span>
-                        </span>
-                        <span className="block truncate px-3 py-2 text-xs text-white/80">
-                          {item.title}
-                        </span>
-                      </button>
-                    ))}
+                <OverviewHeading title="Videos" count={mainVideos.length} spaced />
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                  {mainVideos.map((item) => (
+                    <button
+                      type="button"
+                      key={item.src}
+                      onClick={() => openViewer(mainVideos, item)}
+                      aria-label={`Video abspielen: ${item.title}`}
+                      className="group overflow-hidden rounded-lg text-left ring-1 ring-white/10 transition hover:ring-white/35"
+                    >
+                      <span className="relative block aspect-video">
+                        <VideoThumb src={item.src} />
+                      </span>
+                      <span className="block truncate bg-white/5 px-3 py-2 text-xs text-ivory/80">
+                        {item.title}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </>
             )}
 
-            <div className="mb-3 mt-10 flex items-center justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.09_85)]">
-                Gästefotos
-              </p>
+            <div className="mb-4 mt-12 flex flex-wrap items-end justify-between gap-3">
+              <OverviewHeading title="Gästefotos" count={guestItems.length} inline />
               {!frameMode && (
                 <label
-                  className={`flex cursor-pointer items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs text-white/85 ring-1 ring-white/20 transition hover:bg-white/20 ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-full bg-gold px-4 py-2 text-xs font-medium text-[oklch(0.2_0.02_50)] transition hover:bg-[oklch(0.88_0.08_84)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-gold ${
                     uploading ? "pointer-events-none opacity-60" : ""
                   }`}
                 >
@@ -788,12 +823,12 @@ export function GalleryExperience({
                   ) : (
                     <Upload className="h-3.5 w-3.5" />
                   )}
-                  {uploading ? "Lädt hoch…" : "Fotos hochladen"}
+                  {uploading ? "Lädt hoch…" : "Eigene Fotos hochladen"}
                   <input
                     type="file"
                     accept="image/*,video/*"
                     multiple
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => {
                       handleUpload(e.target.files);
                       e.target.value = "";
@@ -802,55 +837,33 @@ export function GalleryExperience({
                 </label>
               )}
             </div>
-            {items.some((item) => item.album === "gaeste") ? (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
-                {items.map((item, i) =>
-                  item.album === "gaeste" ? (
-                    <button
-                      type="button"
-                      key={item.src}
-                      onClick={() => {
-                        setIndex(i);
-                        setShowOverview(false);
-                      }}
-                      aria-label={`Anzeigen: ${item.title}`}
-                      className={`group relative aspect-square overflow-hidden rounded-xl border transition hover:-translate-y-0.5 ${
-                        i === index
-                          ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)]"
-                          : "border-white/10 hover:border-white/30"
-                      }`}
-                    >
-                      {item.type === "video" ? (
-                        <span className="relative block h-full w-full bg-black/40">
-                          {i !== index && (
-                            <video
-                              src={`${item.src}#t=0.1`}
-                              preload="metadata"
-                              muted
-                              playsInline
-                              className="h-full w-full object-cover"
-                            />
-                          )}
-                          <span className="absolute inset-0 grid place-items-center bg-black/30">
-                            <Play className="h-4 w-4 text-white" fill="currentColor" />
-                          </span>
-                        </span>
-                      ) : (
-                        <img
-                          src={sizedSrc(item.src, "thumb")}
-                          alt={item.title}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                          {...protectedImgProps()}
-                        />
-                      )}
-                    </button>
-                  ) : null,
-                )}
+            {guestItems.length > 0 ? (
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2.5 lg:grid-cols-6">
+                {guestItems.map((item) => (
+                  <button
+                    type="button"
+                    key={item.src}
+                    onClick={() => openViewer(guestItems, item)}
+                    aria-label={`Anzeigen: ${item.title}`}
+                    className="group relative aspect-square overflow-hidden rounded-lg ring-1 ring-white/10 transition hover:ring-white/35"
+                  >
+                    {item.type === "video" ? (
+                      <VideoThumb src={item.src} small />
+                    ) : (
+                      <img
+                        src={sizedSrc(item.src, "thumb")}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        {...protectedImgProps()}
+                      />
+                    )}
+                  </button>
+                ))}
               </div>
             ) : (
-              <p className="text-xs text-white/40">
+              <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-sm text-ivory/50">
                 Noch keine Gästefotos – ladet gern eure schönsten Momente hoch!
               </p>
             )}
@@ -858,58 +871,139 @@ export function GalleryExperience({
         </div>
       )}
 
-      {/* Filmstreifen */}
-      {mainItems.length > 0 && (
+      {/* Einzelansicht: Videos und Gästefotos (öffnet sich nur nach Klick) */}
+      {viewing && viewer && (
         <div
-          className={`relative z-10 mt-4 flex justify-start gap-2.5 overflow-x-auto px-4 pb-6 transition-opacity duration-500 sm:justify-center sm:px-8 ${
-            showChrome ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={viewing.title}
+          className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/90 px-4 backdrop-blur-sm animate-fade-in"
+          onTouchStart={viewing.type === "image" ? onTouchStart : undefined}
+          onTouchEnd={
+            viewing.type === "image"
+              ? onTouchEnd(
+                  () => stepViewer(1),
+                  () => stepViewer(-1),
+                )
+              : undefined
+          }
         >
-          {mainItems.map((item) => (
-            <button
-              type="button"
-              key={item.src}
-              onClick={() => {
-                if (item.type === "video") {
-                  setViewingVideo(item);
-                } else {
-                  const imgIndex = slideshowItems.findIndex((s) => s.src === item.src);
-                  if (imgIndex >= 0) setIndex(imgIndex);
-                }
-              }}
-              aria-label={item.type === "video" ? `Video abspielen: ${item.title}` : item.title}
-              className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition sm:h-16 sm:w-16 ${
-                item.type === "image" && current?.src === item.src
-                  ? "border-[oklch(0.85_0.09_85)] shadow-[0_0_18px_-4px_oklch(0.85_0.09_85)] opacity-100"
-                  : "border-white/15 opacity-45 hover:opacity-80"
-              }`}
-            >
-              {item.type === "video" ? (
-                <span className="relative block h-full w-full bg-black/40">
-                  <video
-                    src={`${item.src}#t=0.1`}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    className="h-full w-full object-cover"
-                  />
-                  <span className="absolute inset-0 grid place-items-center bg-black/30">
-                    <Play className="h-4 w-4 text-white" fill="currentColor" />
-                  </span>
-                </span>
-              ) : (
-                <img
-                  src={sizedSrc(item.src, "thumb")}
-                  alt={item.title}
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                  {...protectedImgProps()}
-                />
-              )}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={closeViewer}
+            aria-label="Schließen"
+            className={`absolute right-4 top-4 z-10 sm:right-8 sm:top-6 ${ICON_BTN}`}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div className="wedding-frame overflow-hidden rounded-[3px]">
+            {viewing.type === "video" ? (
+              <video
+                key={viewing.src}
+                ref={videoRef}
+                src={viewing.src}
+                playsInline
+                preload="auto"
+                controls
+                controlsList="nodownload noremoteplayback"
+                onEnded={() => (viewer.list.length > 1 ? stepViewer(1) : closeViewer())}
+                onContextMenu={(e) => e.preventDefault()}
+                className="max-h-[70vh] w-auto max-w-[90vw] object-contain"
+              />
+            ) : (
+              <img
+                key={viewing.src}
+                src={sizedSrc(viewing.src, "display")}
+                alt={viewing.title}
+                decoding="async"
+                className="max-h-[72vh] w-auto max-w-[90vw] object-contain animate-fade-in"
+                {...protectedImgProps()}
+              />
+            )}
+          </div>
+          <p className="wedding-caption mt-5 max-w-[90vw] truncate text-xl">{viewing.title}</p>
+          {viewer.list.length > 1 && (
+            <>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-ivory/45 tabular-nums">
+                {viewer.index + 1} / {viewer.list.length}
+              </p>
+              <button
+                type="button"
+                onClick={() => stepViewer(-1)}
+                aria-label="Vorheriges"
+                className={`absolute left-2 top-1/2 -translate-y-1/2 sm:left-6 ${ICON_BTN} h-12 w-12`}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => stepViewer(1)}
+                aria-label="Nächstes"
+                className={`absolute right-2 top-1/2 -translate-y-1/2 sm:right-6 ${ICON_BTN} h-12 w-12`}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Rückmeldung nach dem Upload */}
+      {toast && (
+        <div
+          role="status"
+          className="absolute bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[oklch(0.24_0.02_50)]/95 px-5 py-2.5 text-sm text-ivory shadow-2xl ring-1 ring-gold/40 animate-fade-in"
+        >
+          <Check className="h-4 w-4 text-gold" />
+          {toast}
         </div>
       )}
     </div>
+  );
+}
+
+function OverviewHeading({
+  title,
+  count,
+  spaced = false,
+  inline = false,
+}: {
+  title: string;
+  count: number;
+  spaced?: boolean;
+  inline?: boolean;
+}) {
+  return (
+    <div className={`flex items-baseline gap-3 ${inline ? "" : "mb-4"} ${spaced ? "mt-12" : ""}`}>
+      <h2 className="font-serif text-3xl italic text-ivory">{title}</h2>
+      <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 tabular-nums">
+        {count}
+      </span>
+    </div>
+  );
+}
+
+function VideoThumb({ src, small = false }: { src: string; small?: boolean }) {
+  return (
+    <span className="relative block h-full w-full bg-black/40">
+      <video
+        src={`${src}#t=0.1`}
+        preload="metadata"
+        muted
+        playsInline
+        tabIndex={-1}
+        className="h-full w-full object-cover"
+      />
+      <span className="absolute inset-0 grid place-items-center bg-black/30 transition group-hover:bg-black/15">
+        <span
+          className={`grid place-items-center rounded-full bg-white/90 ${small ? "h-6 w-6" : "h-10 w-10"}`}
+        >
+          <Play
+            className={`ml-0.5 text-black ${small ? "h-3 w-3" : "h-4 w-4"}`}
+            fill="currentColor"
+          />
+        </span>
+      </span>
+    </span>
   );
 }
